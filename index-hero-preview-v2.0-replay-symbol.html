@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Jukka Linjama – Demos</title>
+
+    <style>
+        :root {
+            --bg: #1f2126;
+            --bg-soft: #292c33;
+            --card: #30343c;
+            --text: #f1f3f5;
+            --muted: #b9c0c9;
+            --accent: #8fd3ff;
+            --accent-hover: #b7e4ff;
+            --border: rgba(255, 255, 255, 0.12);
+            --shadow: rgba(0, 0, 0, 0.32);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at 20% 10%, rgba(143, 211, 255, 0.13), transparent 30rem),
+                linear-gradient(135deg, var(--bg), var(--bg-soft));
+            color: var(--text);
+            line-height: 1.55;
+        }
+
+        main {
+            width: min(760px, 100%);
+            padding: clamp(32px, 6vw, 56px);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
+                var(--card);
+            box-shadow: 0 28px 90px var(--shadow);
+        }
+
+        .hero-header {
+            position: relative;
+            min-height: clamp(300px, 42vw, 430px);
+            margin: 0 0 28px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 26px;
+            background: transparent;
+        }
+
+        .hero-base {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            opacity: 0;
+            background:
+                radial-gradient(circle at 70% 25%, rgba(143, 211, 255, 0.12), transparent 16rem),
+                rgba(9, 13, 18, 0.92);
+            pointer-events: none;
+        }
+
+        .hero-dim {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            opacity: 0;
+            background:
+                linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.46)),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.02));
+            pointer-events: none;
+        }
+
+        .hero-preview {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #heroCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hero-text {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            min-height: clamp(300px, 42vw, 430px);
+            flex-direction: column;
+            align-items: flex-start;
+            padding: clamp(24px, 4vw, 42px);
+            opacity: 1;
+        }
+
+        .eyebrow {
+            margin: 0;
+            color: var(--accent);
+            font-size: clamp(1rem, 2.1vw, 1.28rem);
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            text-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+        }
+
+        .hero-spacer {
+            flex: 1;
+            min-height: 150px;
+        }
+
+        .created-by {
+            margin: 0 0 10px;
+            color: var(--text);
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            font-weight: 600;
+            text-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+        }
+
+        .version {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            text-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+        }
+
+        .play-again {
+            position: absolute;
+            z-index: 3;
+            right: clamp(14px, 3vw, 24px);
+            bottom: clamp(14px, 3vw, 24px);
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 999px;
+            color: rgba(241, 243, 245, 0.82);
+            background: rgba(255, 255, 255, 0.045);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+            backdrop-filter: blur(8px);
+            font: inherit;
+            font-size: 1rem;
+            font-weight: 750;
+            line-height: 1;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(6px);
+            transition:
+                transform 160ms ease,
+                background 160ms ease,
+                border-color 160ms ease;
+        }
+
+        .play-again.is-visible {
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .play-again:hover {
+            border-color: rgba(255, 255, 255, 0.26);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .description {
+            max-width: 620px;
+            margin: 0 0 34px;
+            color: var(--muted);
+            font-size: clamp(1.05rem, 2vw, 1.28rem);
+        }
+
+        .links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 34px;
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 0 20px;
+            border-radius: 999px;
+            font-weight: 750;
+            text-decoration: none;
+            transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+        }
+
+        .button:hover {
+            transform: translateY(-1px);
+            text-decoration: none;
+        }
+
+        .button.primary {
+            background: var(--accent);
+            color: #071018;
+        }
+
+        .button.primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .button.secondary {
+            border: 1px solid var(--border);
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.035);
+        }
+
+        .button.secondary:hover {
+            border-color: rgba(255, 255, 255, 0.28);
+            background: rgba(255, 255, 255, 0.065);
+        }
+
+        footer {
+            padding-top: 22px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 520px) {
+            body {
+                place-items: start center;
+                padding-top: 32px;
+            }
+
+            main {
+                padding: 24px;
+                border-radius: 24px;
+            }
+
+            .hero-header,
+            .hero-text {
+                min-height: 330px;
+            }
+
+            .hero-spacer {
+                min-height: 170px;
+            }
+
+            .hero-text {
+                padding: 22px;
+            }
+
+            .play-again {
+                right: 18px;
+                bottom: 18px;
+            }
+
+            .links {
+                flex-direction: column;
+            }
+
+            .button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <section class="hero-header" aria-label="Audio coding visual preview">
+            <div class="hero-base" id="heroBase" aria-hidden="true"></div>
+
+            <div class="hero-preview" id="heroPreview" aria-hidden="true">
+                <canvas id="heroCanvas"></canvas>
+            </div>
+
+            <div class="hero-dim" id="heroDim" aria-hidden="true"></div>
+
+            <div class="hero-text" id="heroText">
+                <p class="eyebrow">Interactive web demos</p>
+                <div class="hero-spacer" aria-hidden="true"></div>
+                <p class="created-by">Created by Jukka Linjama</p>
+                <p class="version">Version 2.0 · 17 May 2026</p>
+            </div>
+
+            <button id="playAgainButton" class="play-again" type="button">▶</button>
+        </section>
+
+        <p class="description">
+            Browser-based experiments for audio analysis, Web Audio, tactile perception
+            and multisensory prototypes.
+        </p>
+
+        <div class="links">
+            <!-- Opens the main audio-coding demo collection in a new browser tab. -->
+            <a class="button primary" href="https://jukkatlinjama.github.io/audio-coding/" target="_blank"
+                rel="noopener">
+                Open audio-coding demos
+            </a>
+
+            <!-- Opens the GitHub profile in a new browser tab. -->
+            <a class="button secondary" href="https://github.com/JukkaTLinjama" target="_blank" rel="noopener">
+                GitHub profile
+            </a>
+        </div>
+
+        <footer>
+            © Jukka Linjama ·
+            <a href="https://www.aistipaja.fi" target="_blank" rel="noopener">Aistipaja</a>
+        </footer>
+    </main>
+
+    <script>
+        const heroBase = document.getElementById("heroBase");
+        const heroPreview = document.getElementById("heroPreview");
+        const heroDim = document.getElementById("heroDim");
+        const heroText = document.getElementById("heroText");
+        const canvas = document.getElementById("heroCanvas");
+        const ctx = canvas.getContext("2d");
+        const playAgainButton = document.getElementById("playAgainButton");
+
+        let animationFrameId = null;
+        let startTime = 0;
+        let fadeOutStartTime = null;
+        let hasEnteredReplayMode = false;
+        let params = createHeroParams();
+
+        function createHeroParams() {
+            return {
+                phase: Math.random() * Math.PI * 2,
+                waveSpeed: 0.0016 + Math.random() * 0.0012,
+                waveCount: 2.2 + Math.random() * 1.8,
+                waveAmp: 0.12 + Math.random() * 0.08,
+                particleCount: 26 + Math.floor(Math.random() * 18),
+                particleDrift: 0.18 + Math.random() * 0.22,
+                pulseRate: 0.0014 + Math.random() * 0.0018
+            };
+        }
+
+        function resizeHeroCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function startHeroAnimation() {
+            cancelAnimationFrame(animationFrameId);
+            params = createHeroParams();
+            startTime = performance.now();
+            fadeOutStartTime = null;
+            resizeHeroCanvas();
+
+            if (hasEnteredReplayMode) {
+                // Replay mode: keep illustration and text fully visible permanently.
+                heroBase.style.opacity = "1";
+                heroPreview.style.opacity = "1";
+                heroDim.style.opacity = "1";
+                heroText.style.opacity = "1";
+            } else {
+                // First run: start from text-only and fade the illustration in.
+                heroBase.style.opacity = "0";
+                heroPreview.style.opacity = "0";
+                heroDim.style.opacity = "0";
+                heroText.style.opacity = "1";
+            }
+
+            playAgainButton.style.opacity = "0";
+            playAgainButton.classList.remove("is-visible");
+
+            animationFrameId = requestAnimationFrame(drawHeroFrame);
+        }
+
+        function drawHeroFrame(timestamp) {
+            const elapsed = timestamp - startTime;
+            const duration = 10000;
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            const centerY = height * 0.47;
+
+            if (fadeOutStartTime !== null) {
+                const fadeProgress = clamp01((timestamp - fadeOutStartTime) / 2000);
+                const buttonFade = 1 - smoothstep(0, 1, fadeProgress);
+
+                // Enter permanent replay mode: text and demo stay fully visible.
+                heroBase.style.opacity = "1";
+                heroPreview.style.opacity = "1";
+                heroDim.style.opacity = "1";
+                heroText.style.opacity = "1";
+                playAgainButton.style.opacity = String(buttonFade);
+
+                const activityDuringFade = 1;
+                const ampDuringFade = height * params.waveAmp;
+                ctx.clearRect(0, 0, width, height);
+                drawBackground(width, height, timestamp, activityDuringFade);
+                drawParticles(width, height, timestamp, activityDuringFade);
+                drawWaveform(width, centerY, ampDuringFade, timestamp, activityDuringFade);
+
+                if (fadeProgress >= 1) {
+                    startHeroAnimation();
+                    return;
+                }
+
+                animationFrameId = requestAnimationFrame(drawHeroFrame);
+                return;
+            }
+
+            let heroOpacity;
+            let textOpacity;
+            let buttonOpacity;
+            let activity;
+
+            if (hasEnteredReplayMode) {
+                // Replay mode: demo and text remain at full opacity.
+                heroOpacity = 1;
+                textOpacity = 1;
+
+                // Replay control fades back softly near the end of the loop.
+                if (elapsed < 8000) {
+                    buttonOpacity = 0;
+                } else {
+                    buttonOpacity = smoothstep(8000, 10000, elapsed);
+                }
+
+                const loopTail = smoothstep(8500, 10000, elapsed);
+                activity = 1 - loopTail * 0.35;
+            } else {
+                // First run: timed intro choreography.
+                heroOpacity = getHeroOpacity(elapsed);
+                textOpacity = getTextOpacity(elapsed);
+                buttonOpacity = getButtonOpacity(elapsed);
+                activity = 1 - smoothstep(8500, duration, elapsed);
+            }
+
+            const amp = height * params.waveAmp * (0.35 + activity * 0.65);
+
+            heroBase.style.opacity = String(heroOpacity);
+            heroPreview.style.opacity = String(heroOpacity);
+            heroDim.style.opacity = String(heroOpacity);
+            heroText.style.opacity = String(textOpacity);
+            playAgainButton.style.opacity = String(buttonOpacity);
+
+            if (buttonOpacity > 0.01) {
+                playAgainButton.classList.add("is-visible");
+            } else {
+                playAgainButton.classList.remove("is-visible");
+            }
+
+            ctx.clearRect(0, 0, width, height);
+            drawBackground(width, height, timestamp, activity);
+            drawParticles(width, height, timestamp, activity);
+            drawWaveform(width, centerY, amp, timestamp, activity);
+
+            const fullCycleDone = hasEnteredReplayMode ? elapsed >= duration : elapsed >= 12000;
+
+            if (!fullCycleDone) {
+                animationFrameId = requestAnimationFrame(drawHeroFrame);
+            } else {
+                animationFrameId = null;
+            }
+        }
+
+        function getHeroOpacity(elapsed) {
+            // 0 s: 0%, 5 s: 100%, 10 s and later: 50%.
+            if (elapsed <= 5000) return smoothstep(0, 5000, elapsed);
+            if (elapsed <= 10000) return 1 - 0.5 * smoothstep(5000, 10000, elapsed);
+            return 0.5;
+        }
+
+        function getTextOpacity(elapsed) {
+            // 0 s: 100%, 5 s: 10%, 10 s and later: 100%.
+            if (elapsed <= 5000) return 1 - 0.9 * smoothstep(0, 5000, elapsed);
+            if (elapsed <= 10000) return 0.1 + 0.9 * smoothstep(5000, 10000, elapsed);
+            return 1;
+        }
+
+        function getButtonOpacity(elapsed) {
+            // 0-9 s: 0%, 11 s and later: 100%.
+            if (elapsed < 9000) return 0;
+            if (elapsed <= 11000) return smoothstep(9000, 11000, elapsed);
+            return 1;
+        }
+
+        function startHeroFadeOut() {
+            if (fadeOutStartTime !== null) return;
+
+            hasEnteredReplayMode = true;
+            fadeOutStartTime = performance.now();
+
+            // Start a new visual loop immediately while the replay button fades out.
+            cancelAnimationFrame(animationFrameId);
+            params = createHeroParams();
+            startTime = performance.now();
+            resizeHeroCanvas();
+
+            heroBase.style.opacity = "1";
+            heroPreview.style.opacity = "1";
+            heroDim.style.opacity = "1";
+            heroText.style.opacity = "1";
+            playAgainButton.style.opacity = "1";
+            playAgainButton.classList.add("is-visible");
+
+            animationFrameId = requestAnimationFrame(drawHeroFrame);
+        }
+
+        function drawBackground(width, height, timestamp, activity) {
+            const pulse = 0.5 + 0.5 * Math.sin(timestamp * params.pulseRate + params.phase);
+            const glow = 0.08 + pulse * 0.08 * activity;
+
+            const gradient = ctx.createRadialGradient(
+                width * 0.65,
+                height * 0.28,
+                0,
+                width * 0.65,
+                height * 0.28,
+                width * 0.72
+            );
+
+            gradient.addColorStop(0, `rgba(143, 211, 255, ${glow})`);
+            gradient.addColorStop(0.42, "rgba(143, 211, 255, 0.035)");
+            gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+            ctx.fillStyle = "rgba(7, 10, 15, 0.56)";
+            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+        }
+
+        function drawWaveform(width, centerY, amp, timestamp, activity) {
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = `rgba(143, 211, 255, ${0.42 + activity * 0.28})`;
+            ctx.beginPath();
+
+            for (let x = 0; x <= width; x += 5) {
+                const u = x / width;
+                const carrier = Math.sin(u * Math.PI * 2 * params.waveCount + timestamp * params.waveSpeed + params.phase);
+                const modulator = Math.sin(u * Math.PI * 7.5 - timestamp * params.waveSpeed * 0.55);
+                const y = centerY + carrier * amp + modulator * amp * 0.22;
+
+                if (x === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+
+            ctx.stroke();
+
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.stroke();
+        }
+
+        function drawParticles(width, height, timestamp, activity) {
+            for (let i = 0; i < params.particleCount; i++) {
+                const seed = i * 97.13 + params.phase * 31;
+                const baseX = pseudoRandom(seed) * width;
+                const baseY = pseudoRandom(seed + 19.7) * height;
+                const drift = Math.sin(timestamp * 0.0007 + seed) * width * 0.035 * params.particleDrift * activity;
+                const x = (baseX + drift + width) % width;
+                const y = baseY + Math.cos(timestamp * 0.0009 + seed) * height * 0.035 * activity;
+                const radius = 1.2 + pseudoRandom(seed + 5.4) * 2.4;
+                const alpha = 0.12 + pseudoRandom(seed + 11.2) * 0.28;
+
+                ctx.beginPath();
+                ctx.fillStyle = `rgba(185, 192, 201, ${alpha})`;
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function pseudoRandom(value) {
+            return Math.abs(Math.sin(value * 12.9898) * 43758.5453) % 1;
+        }
+
+        function clamp01(value) {
+            return Math.min(Math.max(value, 0), 1);
+        }
+
+        function smoothstep(edge0, edge1, value) {
+            const x = clamp01((value - edge0) / (edge1 - edge0));
+            return x * x * (3 - 2 * x);
+        }
+
+        window.addEventListener("resize", resizeHeroCanvas);
+        playAgainButton.addEventListener("click", startHeroFadeOut);
+        startHeroAnimation();
+    </script>
+</body>
+
+</html>
