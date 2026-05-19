@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hero Preview Swarm v3.0</title>
+<style>
+:root {
+    --bg: #1f2126;
+    --card: #30343c;
+    --text: #f1f3f5;
+    --muted: #b9c0c9;
+    --accent: #8fd3ff;
+    --border: rgba(255,255,255,0.12);
+    --shadow: rgba(0,0,0,0.32);
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+        radial-gradient(circle at 20% 10%, rgba(143,211,255,0.13), transparent 30rem),
+        linear-gradient(135deg, #1f2126, #292c33);
+    color: var(--text);
+}
+main {
+    width: min(860px, 100%);
+    padding: clamp(24px, 5vw, 42px);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025)),
+        var(--card);
+    box-shadow: 0 28px 90px var(--shadow);
+}
+.eyebrow {
+    margin: 0 0 14px;
+    color: var(--accent);
+    font-size: clamp(0.95rem, 2vw, 1.18rem);
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+.preview-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 7;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 70% 24%, rgba(143,211,255,0.10), transparent 18rem),
+        rgba(5,8,12,0.84);
+}
+#swarmPreview {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.preview-frame canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.preview-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.36) 100%),
+        linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.34));
+}
+.controls {
+    display: grid;
+    grid-template-columns: auto 1fr 3.2rem auto;
+    gap: 10px 12px;
+    align-items: center;
+    margin: 18px 0 0;
+    padding: 12px 14px;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.035);
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.controls label {
+    color: var(--text);
+    font-weight: 650;
+}
+
+.controls input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+}
+
+.control-value {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.restart-button {
+    grid-row: 1 / span 2;
+    grid-column: 4;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 999px;
+    color: rgba(241,243,245,0.86);
+    background: rgba(255,255,255,0.045);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.restart-button:hover {
+    border-color: rgba(255,255,255,0.26);
+    background: rgba(255,255,255,0.08);
+}
+
+.caption {
+    margin: 18px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+@media (max-width: 520px) {
+    body { place-items: start center; padding: 32px 20px 20px; }
+    main { padding: 22px; border-radius: 24px; }
+
+    .controls {
+        grid-template-columns: auto 1fr 3.2rem;
+    }
+
+    .restart-button {
+        grid-row: auto;
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+</head>
+<body>
+<main>
+    <p class="eyebrow">Interactive web demos</p>
+
+    <section class="preview-frame" aria-label="Swarm preview animation">
+        <div id="swarmPreview"></div>
+        <div class="preview-vignette" aria-hidden="true"></div>
+    </section>
+
+    <div class="controls" aria-label="Preview controls">
+        <label for="speedSlider">Speed</label>
+        <input type="range" id="speedSlider" min="0.1" max="2.4" value="0.78" step="0.01">
+        <span id="speedValue" class="control-value">0.78</span>
+
+        <label for="dynamicsSlider">Dynamics</label>
+        <input type="range" id="dynamicsSlider" min="0.1" max="1.5" value="0.72" step="0.01">
+        <span id="dynamicsValue" class="control-value">0.72</span>
+
+        <button id="restartButton" class="restart-button" type="button">Restart</button>
+    </div>
+
+    <p class="caption">Standalone hero-preview test · z-axis touch suction · brighter target field.</p>
+</main>
+
+<script>
+const previewConfig = {
+    dynamics: 0.72,       // follower spring feel: lower = softer/slower, higher = snappier
+    speed: 0.78,          // waveform playback speed
+    runDuration: 10,      // seconds before slowdown begins
+    slowdownDuration: 5,  // seconds used to ease target motion down
+    pauseMode: "settle",  // "freeze" or "settle"
+    targetCount: 96,
+    swarmCount: 16,
+    boxSize: 2.15,
+    targetSize: 0.034,
+    followerSize: 0.072
+};
+
+class ElementDynamics {
+    constructor(mass, naturalPeriod, dampingRatio) {
+        this.mass = mass;
+        this.naturalPeriod = naturalPeriod;
+        this.dampingRatio = dampingRatio;
+        this.position = { x: 0, y: 0, z: 0 };
+        this.velocity = { x: 0, y: 0, z: 0 };
+    }
+
+    update(targetPosition, targetVelocity, timeStep) {
+        const naturalFrequency = 1 / this.naturalPeriod;
+        const omegaN = 2 * Math.PI * naturalFrequency;
+        const stiffness = omegaN * omegaN * this.mass;
+        const damping = 2 * this.dampingRatio * omegaN * this.mass;
+
+        const forceX = -stiffness * (this.position.x - targetPosition.x) - damping * (this.velocity.x - targetVelocity.x);
+        const forceY = -stiffness * (this.position.y - targetPosition.y) - damping * (this.velocity.y - targetVelocity.y);
+        const forceZ = -stiffness * (this.position.z - targetPosition.z) - damping * (this.velocity.z - targetVelocity.z);
+
+        this.velocity.x += (forceX / this.mass) * timeStep;
+        this.velocity.y += (forceY / this.mass) * timeStep;
+        this.velocity.z += (forceZ / this.mass) * timeStep;
+
+        this.position.x += this.velocity.x * timeStep;
+        this.position.y += this.velocity.y * timeStep;
+        this.position.z += this.velocity.z * timeStep;
+    }
+}
+
+const container = document.getElementById("swarmPreview");
+const speedSlider = document.getElementById("speedSlider");
+const speedValue = document.getElementById("speedValue");
+const dynamicsSlider = document.getElementById("dynamicsSlider");
+const dynamicsValue = document.getElementById("dynamicsValue");
+const restartButton = document.getElementById("restartButton");
+
+let scene;
+let camera;
+let renderer;
+let swarmElements = [];
+let targetElements = [];
+let targetBasePositions = [];
+let followedIndices = [];
+let waveforms;
+let startTime = 0;
+let lastTime = 0;
+let frameIndex = 0;
+let isFrozen = false;
+let speedBoost = 0;
+let pointerImpulse = {
+    x: 0,
+    y: 0,
+    strength: 0,
+    startTime: -999
+};
+let pointerIsActive = false;
+let lastTouchPulseTime = -999;
+let activePointerWorld = { x: 0, y: 0 };
+
+function init() {
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(58, 1, 0.1, 100);
+    camera.position.set(0, 0, 3.45);
+
+    renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance"
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    container.appendChild(renderer.domElement);
+
+    waveforms = generateWavelet(140, 1.9, 1.2, 0.5, 1.5, 6, 42);
+    targetBasePositions = generateSwarmElementPositions(previewConfig.targetCount);
+    followedIndices = generateFollowedIndices(previewConfig.targetCount, previewConfig.swarmCount, 3);
+
+    createTargets();
+    createFollowers();
+    resizeRenderer();
+
+    startTime = performance.now();
+    lastTime = startTime;
+    requestAnimationFrame(animate);
+}
+
+function createTargets() {
+    const geometry = new THREE.SphereGeometry(previewConfig.targetSize, 12, 12);
+
+    for (let i = 0; i < previewConfig.targetCount; i++) {
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0x8fd3ff),
+            transparent: true,
+            opacity: 0.13,
+            depthWrite: false
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        const base = targetBasePositions[i];
+
+        mesh.position.set(base.x, base.y, base.z);
+        scene.add(mesh);
+
+        targetElements.push({
+            position: { ...base },
+            previousPosition: { ...base },
+            velocity: { x: 0, y: 0, z: 0 },
+            mesh
+        });
+    }
+}
+
+function getFollowerNaturalPeriod() {
+    // Higher dynamics means shorter natural period and therefore stiffer follower motion.
+    return lerp(6.2, 0.95, clamp01(previewConfig.dynamics / 1.5));
+}
+
+function getFollowerDampingRatio() {
+    // Add damping as stiffness increases to avoid excessive oscillation.
+    return lerp(0.14, 0.72, clamp01(previewConfig.dynamics / 1.5));
+}
+
+function applyFollowerDynamics() {
+    const naturalPeriod = getFollowerNaturalPeriod();
+    const dampingRatio = getFollowerDampingRatio();
+
+    swarmElements.forEach(({ dynamics }) => {
+        dynamics.naturalPeriod = naturalPeriod;
+        dynamics.dampingRatio = dampingRatio;
+    });
+}
+
+function createFollowers() {
+    const naturalPeriod = getFollowerNaturalPeriod();
+    const dampingRatio = getFollowerDampingRatio();
+    const geometry = new THREE.SphereGeometry(previewConfig.followerSize, 18, 18);
+
+    for (let i = 0; i < previewConfig.swarmCount; i++) {
+        const dynamics = new ElementDynamics(
+            getRandomVariance(1.15, 0.35),
+            getRandomVariance(naturalPeriod, 0.65),
+            getRandomVariance(dampingRatio, 0.12)
+        );
+
+        dynamics.position = {
+            x: Math.random() * previewConfig.boxSize - previewConfig.boxSize / 2,
+            y: Math.random() * previewConfig.boxSize - previewConfig.boxSize / 2,
+            z: Math.random() * previewConfig.boxSize - previewConfig.boxSize / 2
+        };
+
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xb7e4ff),
+            transparent: true,
+            opacity: 0.7,
+            depthWrite: false
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(dynamics.position.x, dynamics.position.y, dynamics.position.z);
+        scene.add(mesh);
+
+        swarmElements.push({ dynamics, mesh });
+    }
+}
+
+function animate(now) {
+    const elapsedSeconds = (now - startTime) / 1000;
+    const dt = Math.min((now - lastTime) / 1000, 1 / 30);
+    lastTime = now;
+    const frameScale = dt * 60;
+
+    if (previewConfig.pauseMode === "freeze" && elapsedSeconds >= previewConfig.runDuration) {
+        if (!isFrozen) {
+            renderer.render(scene, camera);
+            isFrozen = true;
+        }
+        return;
+    }
+
+    if (pointerIsActive && elapsedSeconds - lastTouchPulseTime >= 0.5) {
+        triggerTouchImpulse(activePointerWorld, 0.42, false);
+        lastTouchPulseTime = elapsedSeconds;
+    }
+
+    const targetSpeedScale = getTargetSpeedScale(elapsedSeconds);
+    const targetsAreMoving = targetSpeedScale > 0.001;
+
+    updateTargets(targetsAreMoving, dt, frameScale, targetSpeedScale, elapsedSeconds);
+    updateFollowers(dt);
+    updateVisualModulation(elapsedSeconds);
+    updateCamera(elapsedSeconds);
+    renderer.render(scene, camera);
+
+    requestAnimationFrame(animate);
+}
+
+function getTargetSpeedScale(elapsedSeconds) {
+    // Keep full motion first, then ease down instead of stopping abruptly.
+    if (elapsedSeconds < previewConfig.runDuration) {
+        return 1;
+    }
+
+    const slowdownProgress = clamp01((elapsedSeconds - previewConfig.runDuration) / previewConfig.slowdownDuration);
+    return 1 - smoothstep01(slowdownProgress);
+}
+
+function updateTargets(targetsAreMoving, dt, frameScale, targetSpeedScale, elapsedSeconds) {
+    if (targetsAreMoving) {
+        frameIndex += previewConfig.speed * frameScale * targetSpeedScale * (1 + speedBoost);
+    }
+
+    // Decay tap-induced speed boost smoothly back to normal.
+    speedBoost *= 0.965;
+
+    // Slow global breathing modulation derived from the same wavelet source.
+    const breathIndex = Math.floor((frameIndex * 0.08) % waveforms.x.length);
+    const breathWave = Math.abs(waveforms.x[breathIndex]);
+    const groupBreath = 0.94 + breathWave * 0.12;
+    const depthBreath = 0.9 + breathWave * 0.22;
+
+    targetElements.forEach((target, index) => {
+        target.previousPosition = { ...target.position };
+
+        if (targetsAreMoving) {
+            const delay = index * 0.42;
+            const exactIndex = (frameIndex + delay) % waveforms.x.length;
+            const lowerIndex = Math.floor(exactIndex);
+            const upperIndex = (lowerIndex + 1) % waveforms.x.length;
+            const fraction = exactIndex - lowerIndex;
+            const base = targetBasePositions[index];
+
+            target.position.x = base.x + interpolate(waveforms.x[lowerIndex], waveforms.x[upperIndex], fraction) * 0.38;
+            target.position.y = base.y + interpolate(waveforms.y[lowerIndex], waveforms.y[upperIndex], fraction) * 0.32;
+            target.position.z = base.z + interpolate(waveforms.z[lowerIndex], waveforms.z[upperIndex], fraction) * 0.48;
+        }
+
+        target.velocity.x = (target.position.x - target.previousPosition.x) / dt;
+        target.velocity.y = (target.position.y - target.previousPosition.y) / dt;
+        target.velocity.z = (target.position.z - target.previousPosition.z) / dt;
+
+        if (!targetsAreMoving) {
+            target.velocity.x = 0;
+            target.velocity.y = 0;
+            target.velocity.z = 0;
+        }
+
+        target.mesh.position.set(target.position.x, target.position.y, target.position.z);
+    });
+}
+
+
+function applyPointerImpulseToTarget(target, index, elapsedSeconds) {
+    const age = elapsedSeconds - pointerImpulse.startTime;
+    const impulseDuration = 2.4;
+
+    if (age < 0 || age > impulseDuration || pointerImpulse.strength <= 0) {
+        return;
+    }
+
+    const fade = 1 - smoothstep01(age / impulseDuration);
+    const base = targetBasePositions[index];
+    const dx = base.x - pointerImpulse.x;
+    const dy = base.y - pointerImpulse.y;
+    const distance = Math.sqrt(dx * dx + dy * dy) + 0.001;
+    const radius = 1.25;
+    const local = Math.max(0, 1 - distance / radius);
+    const impulse = local * local * pointerImpulse.strength * fade;
+
+    target.position.x += (dx / distance) * impulse;
+    target.position.y += (dy / distance) * impulse;
+    target.position.z += impulse * 0.38;
+}
+
+function handlePointerDown(event) {
+    pointerIsActive = true;
+    activePointerWorld = getPointerWorldPosition(event);
+    triggerTouchImpulse(activePointerWorld, 0.9, true);
+    lastTouchPulseTime = (performance.now() - startTime) / 1000;
+}
+
+function handlePointerMove(event) {
+    if (!pointerIsActive) return;
+    activePointerWorld = getPointerWorldPosition(event);
+}
+
+function handlePointerEnd() {
+    pointerIsActive = false;
+}
+
+function triggerTouchImpulse(world, strength, isInitialPulse) {
+    const elapsedSeconds = (performance.now() - startTime) / 1000;
+
+    pointerImpulse.x = world.x;
+    pointerImpulse.y = world.y;
+    pointerImpulse.strength = 0.48 * strength;
+    pointerImpulse.startTime = elapsedSeconds;
+
+    // Keep speed boost almost neutral; the visible reaction comes from follower velocity.
+    if (isInitialPulse) {
+        speedBoost = Math.min(speedBoost + 0.18, 0.45);
+    }
+
+    // Z-axis suction: center pulls toward camera, outer ring returns away from camera.
+    swarmElements.forEach((swarm) => {
+        const px = swarm.dynamics.position.x;
+        const py = swarm.dynamics.position.y;
+
+        const dx = px - world.x;
+        const dy = py - world.y;
+        const distance = Math.sqrt(dx * dx + dy * dy) + 0.001;
+
+        const radialX = dx / distance;
+        const radialY = dy / distance;
+
+        // Axisymmetric z-flow:
+        // center = suction toward the camera, outer ring = return flow away from the camera.
+        const maxRadius = 4.0;
+        const r = distance / maxRadius;
+        const centerJet = Math.exp(-r * r * 8.0);
+        const returnRing = Math.exp(-Math.pow(r - 0.72, 2) * 10.0);
+
+        const zFlow = (1.9 * centerJet - 1.0 * returnRing) * strength;
+
+        // Keep XY motion minimal so the interaction reads as depth flow, not planar swirl.
+        const xyCorrection = centerJet * 0.06 * strength - returnRing * 0.025 * strength;
+
+        swarm.dynamics.velocity.x += radialX * xyCorrection;
+        swarm.dynamics.velocity.y += radialY * xyCorrection;
+        swarm.dynamics.velocity.z += zFlow;
+    });
+
+    if (isFrozen) {
+        isFrozen = false;
+        lastTime = performance.now();
+        requestAnimationFrame(animate);
+    }
+}
+
+function getPointerWorldPosition(event) {
+    const rect = container.getBoundingClientRect();
+    const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+    const cameraDistance = Math.abs(camera.position.z);
+    const visibleHeight = 2 * Math.tan((camera.fov * Math.PI / 180) / 2) * cameraDistance;
+    const visibleWidth = visibleHeight * camera.aspect;
+
+    return {
+        x: ndcX * visibleWidth * 0.5,
+        y: ndcY * visibleHeight * 0.5
+    };
+}
+
+
+function updateFollowers(dt) {
+    swarmElements.forEach((swarm, index) => {
+        const targetIndex = followedIndices[index % followedIndices.length];
+        const target = targetElements[targetIndex];
+
+        swarm.dynamics.update(target.position, target.velocity, dt);
+        swarm.mesh.position.set(
+            swarm.dynamics.position.x,
+            swarm.dynamics.position.y,
+            swarm.dynamics.position.z
+        );
+    });
+}
+
+
+function updateVisualModulation(elapsedSeconds) {
+    const slowColorIndex = frameIndex * 0.32;
+
+    targetElements.forEach((target, index) => {
+        const waveIndex = Math.floor((slowColorIndex + index * 0.18) % waveforms.x.length);
+        const waveEnergy = Math.min(Math.abs(waveforms.x[waveIndex]), 1);
+        const pulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * 0.18 + index * 0.11);
+        const brightness = 0.54 + waveEnergy * 0.10 + pulse * 0.04;
+
+        // Calm but visible red target field.
+        target.mesh.material.color.setRGB(brightness, 0.11, 0.08);
+        target.mesh.material.opacity = 0.30 + pulse * 0.12;
+    });
+
+    swarmElements.forEach((swarm) => {
+        const vx = swarm.dynamics.velocity.x;
+        const vy = swarm.dynamics.velocity.y;
+        const vz = swarm.dynamics.velocity.z;
+        const speedEnergy = Math.min(Math.sqrt(vx * vx + vy * vy + vz * vz) * 0.13, 1);
+        const base = 0.58 + speedEnergy * 0.34;
+
+        // Foreground followers brighten slightly when their motion is energetic.
+        swarm.mesh.material.color.setRGB(base * 0.72, base * 0.9, base);
+        swarm.mesh.material.opacity = 0.62 + speedEnergy * 0.25;
+    });
+}
+
+
+function updateCamera(elapsedSeconds) {
+    const orbit = Math.sin(elapsedSeconds * 0.18) * 0.14;
+    camera.position.x = orbit;
+    camera.position.y = Math.sin(elapsedSeconds * 0.13) * 0.05;
+    camera.lookAt(0, 0, 0);
+}
+
+function resizeRenderer() {
+    const rect = container.getBoundingClientRect();
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+}
+
+function generateWavelet(baseLength, baseFrequency, freqVariation, baseTau, tauVariation, numWavelets, overlapPercent = 30) {
+    const overlapFactor = 1 - overlapPercent / 100;
+    const overlapLength = Math.floor(baseLength * overlapFactor);
+    const totalLength = baseLength + (numWavelets - 1) * overlapLength;
+
+    const x = new Array(totalLength).fill(0);
+    const y = new Array(totalLength).fill(0);
+    const z = new Array(totalLength).fill(0);
+
+    for (let i = 0; i < numWavelets; i++) {
+        const tauX = baseTau + (Math.random() - 0.5) * tauVariation;
+        const tauY = baseTau + (Math.random() - 0.5) * tauVariation;
+        const tauZ = baseTau + (Math.random() - 0.5) * tauVariation;
+        const freqX = baseFrequency + (Math.random() - 0.5) * freqVariation;
+        const freqY = baseFrequency + (Math.random() - 0.5) * freqVariation;
+        const freqZ = baseFrequency + (Math.random() - 0.5) * freqVariation;
+        const startOffset = i * overlapLength;
+
+        for (let j = 0; j < baseLength; j++) {
+            const t = j / baseLength;
+            const windowValue = Math.sin(Math.PI * t) ** 2;
+
+            x[startOffset + j] += Math.sin(2 * Math.PI * freqX * t) * Math.exp(-tauX * t) * windowValue;
+            y[startOffset + j] += Math.sin(2 * Math.PI * freqY * t) * Math.exp(-tauY * t) * windowValue;
+            z[startOffset + j] += Math.sin(2 * Math.PI * freqZ * t) * Math.exp(-tauZ * t) * windowValue;
+        }
+    }
+
+    return { x, y, z };
+}
+
+function generateSwarmElementPositions(numElements) {
+    const positions = [];
+
+    // Use a landscape grid because the hero frame is wide.
+    const cols = Math.ceil(Math.sqrt(numElements * 2.1));
+    const rows = Math.ceil(numElements / cols);
+    const spacingX = 0.34;
+    const spacingY = 0.30;
+    const flattenZ = 1.15;
+
+    for (let i = 0; i < numElements; i++) {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const x = (col - (cols - 1) / 2) * spacingX;
+        const y = (row - (rows - 1) / 2) * spacingY;
+        const z = (Math.random() - 0.5) * flattenZ;
+
+        positions.push({ x, y, z });
+    }
+
+    return positions;
+}
+
+function generateFollowedIndices(numTargets, count, spreadFactor) {
+    const indices = [];
+    const centerIndex = Math.floor(numTargets / 2);
+    const start = -Math.floor(count / 2);
+
+    for (let i = 0; i < count; i++) {
+        const targetIndex = centerIndex + (start + i) * spreadFactor;
+        indices.push(Math.max(0, Math.min(numTargets - 1, targetIndex)));
+    }
+
+    return indices;
+}
+
+function getRandomVariance(value, variance) {
+    return value + Math.random() * variance - variance / 2;
+}
+
+function interpolate(value1, value2, fraction) {
+    return value1 + (value2 - value1) * fraction;
+}
+
+function clamp01(value) {
+    return Math.min(Math.max(value, 0), 1);
+}
+
+function smoothstep01(value) {
+    const x = clamp01(value);
+    return x * x * (3 - 2 * x);
+}
+
+function lerp(a, b, t) {
+    return a + (b - a) * t;
+}
+
+
+function restartPreview() {
+    swarmElements.forEach((swarm) => scene.remove(swarm.mesh));
+    targetElements.forEach((target) => scene.remove(target.mesh));
+
+    swarmElements = [];
+    targetElements = [];
+    targetBasePositions = [];
+    followedIndices = [];
+
+    waveforms = generateWavelet(140, 1.9, 1.2, 0.5, 1.5, 6, 42);
+    targetBasePositions = generateSwarmElementPositions(previewConfig.targetCount);
+    followedIndices = generateFollowedIndices(previewConfig.targetCount, previewConfig.swarmCount, 3);
+
+    createTargets();
+    createFollowers();
+
+    startTime = performance.now();
+    lastTime = startTime;
+    frameIndex = 0;
+    isFrozen = false;
+    speedBoost = 0;
+    pointerImpulse.strength = 0;
+    pointerImpulse.startTime = -999;
+    pointerIsActive = false;
+    lastTouchPulseTime = -999;
+}
+
+speedSlider.addEventListener("input", (event) => {
+    previewConfig.speed = parseFloat(event.target.value);
+    speedValue.textContent = previewConfig.speed.toFixed(2);
+});
+
+dynamicsSlider.addEventListener("input", (event) => {
+    previewConfig.dynamics = parseFloat(event.target.value);
+    dynamicsValue.textContent = previewConfig.dynamics.toFixed(2);
+    applyFollowerDynamics();
+});
+
+restartButton.addEventListener("click", restartPreview);
+container.addEventListener("pointerdown", handlePointerDown);
+container.addEventListener("pointermove", handlePointerMove);
+container.addEventListener("pointerup", handlePointerEnd);
+container.addEventListener("pointercancel", handlePointerEnd);
+container.addEventListener("pointerleave", handlePointerEnd);
+
+window.addEventListener("resize", resizeRenderer);
+init();
+</script>
+</body>
+</html>
