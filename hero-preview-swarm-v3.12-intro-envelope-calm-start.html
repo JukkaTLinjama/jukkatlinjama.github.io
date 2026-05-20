@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hero Preview Swarm v3.12</title>
+<style>
+:root {
+    --bg: #1f2126;
+    --card: #30343c;
+    --text: #f1f3f5;
+    --muted: #b9c0c9;
+    --accent: #8fd3ff;
+    --border: rgba(255,255,255,0.12);
+    --shadow: rgba(0,0,0,0.32);
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+        radial-gradient(circle at 20% 10%, rgba(143,211,255,0.13), transparent 30rem),
+        linear-gradient(135deg, #1f2126, #292c33);
+    color: var(--text);
+}
+main {
+    width: min(860px, 100%);
+    padding: clamp(24px, 5vw, 42px);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025)),
+        var(--card);
+    box-shadow: 0 28px 90px var(--shadow);
+}
+.eyebrow {
+    margin: 0 0 14px;
+    color: var(--accent);
+    font-size: clamp(0.95rem, 2vw, 1.18rem);
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+.preview-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 7;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at 70% 24%, rgba(143,211,255,0.10), transparent 18rem),
+        rgba(5,8,12,0.84);
+}
+#swarmPreview {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.preview-frame canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.preview-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.36) 100%),
+        linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.34));
+}
+.controls {
+    display: grid;
+    grid-template-columns: auto 1fr minmax(8.8rem, auto) auto;
+    gap: 10px 12px;
+    align-items: center;
+    margin: 18px 0 0;
+    padding: 12px 14px;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.035);
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.controls label {
+    color: var(--text);
+    font-weight: 650;
+}
+
+.controls input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+}
+
+.control-value {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.activity-readout {
+    min-width: 8.8rem;
+    white-space: nowrap;
+}
+
+.restart-button {
+    grid-row: 1 / span 3;
+    grid-column: 4;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 999px;
+    color: rgba(241,243,245,0.86);
+    background: rgba(255,255,255,0.045);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.restart-button:hover {
+    border-color: rgba(255,255,255,0.26);
+    background: rgba(255,255,255,0.08);
+}
+
+.caption {
+    margin: 18px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.caption strong {
+    color: var(--text);
+    font-weight: 700;
+}
+@media (max-width: 520px) {
+    body { place-items: start center; padding: 32px 20px 20px; }
+    main { padding: 22px; border-radius: 24px; }
+
+    .controls {
+        grid-template-columns: auto 1fr minmax(8.8rem, auto);
+    }
+
+    .restart-button {
+        grid-row: auto;
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+</head>
+<body>
+<main>
+    <section class="preview-frame" aria-label="Swarm preview animation">
+        <div id="swarmPreview"></div>
+        <div class="preview-vignette" aria-hidden="true"></div>
+    </section>
+
+    <div class="controls" aria-label="Preview controls">
+        <label for="activitySlider">Activity</label>
+        <input type="range" id="activitySlider" min="0.05" max="1.5" value="0.78" step="0.01">
+        <span id="activityValue" class="control-value activity-readout">Set 0.78 · Active · Now 0.78</span>
+
+        <label for="periodSlider">Period</label>
+        <input type="range" id="periodSlider" min="0.7" max="6.5" value="3.2" step="0.05">
+        <span id="periodValue" class="control-value">Set 3.20s · Now 3.20s</span>
+
+        <label for="dampingSlider">Damping</label>
+        <input type="range" id="dampingSlider" min="4" max="85" value="18" step="1">
+        <span id="dampingValue" class="control-value">Set 18% · Now 18%</span>
+
+        <button id="restartButton" class="restart-button" type="button">Restart</button>
+    </div>
+
+    <p class="caption">Created by<br><strong>Jukka Linjama</strong><br>v2.0 · 2026-05-20</p>
+</main>
+
+<script>
+const previewConfig = {
+    periodSeconds: 3.2,   // follower natural period in seconds: higher = slower, lower = snappier
+    dampingPercent: 18,   // percent of critical damping: lower = more ringing, higher = more controlled
+    activity: 0.78,       // manual maximum activity: target speed and target amplitude driver
+    idleActivity: 0.12,   // low non-zero activity after settling
+    activityBreathDepth: 0.12, // slow modulation depth for effective activity
+    activityWakeRiseSeconds: 2.4, // slider wake rises gradually instead of jumping to full activity
+    introStartActivity: 0.10, // calm initial activity before the hero wakes up
+    introRiseDuration: 6, // seconds from calm start to full activity
+    introHoldDuration: 6, // seconds held near full activity before normal settling begins
+    tapActivityAddRatio: 0.20, // each tap adds 20% of the manual activity value
+    tapActivityMaxRatio: 0.50, // tap boost may exceed the manual activity value by up to +50%
+    tapActivityDecaySeconds: 10, // tap boost decays smoothly back to the settled activity
+    targetBreathDepth: 0.065, // per-target slow breathing offset amplitude
+    targetBreathSpeed: 0.095, // per-target breathing phase speed
+    runDuration: 10,      // seconds of full activity after user input
+    slowdownDuration: 30, // seconds used to ease activity down
+    pauseMode: "settle",  // "freeze" or "settle"
+    targetCount: 96,
+    swarmCount: 16,
+    boxSize: 2.15,
+    targetSize: 0.034,
+    followerSize: 0.072
+};
+
+class ElementDynamics {
+    constructor(mass, naturalPeriod, dampingRatio) {
+        this.mass = mass;
+        this.naturalPeriod = naturalPeriod;
+        this.dampingRatio = dampingRatio;
+        this.position = { x: 0, y: 0, z: 0 };
+        this.velocity = { x: 0, y: 0, z: 0 };
+    }
+
+    update(targetPosition, targetVelocity, timeStep) {
+        const naturalFrequency = 1 / this.naturalPeriod;
+        const omegaN = 2 * Math.PI * naturalFrequency;
+        const stiffness = omegaN * omegaN * this.mass;
+        const damping = 2 * this.dampingRatio * omegaN * this.mass;
+
+        const forceX = -stiffness * (this.position.x - targetPosition.x) - damping * (this.velocity.x - targetVelocity.x);
+        const forceY = -stiffness * (this.position.y - targetPosition.y) - damping * (this.velocity.y - targetVelocity.y);
+        const forceZ = -stiffness * (this.position.z - targetPosition.z) - damping * (this.velocity.z - targetVelocity.z);
+
+        this.velocity.x += (forceX / this.mass) * timeStep;
+        this.velocity.y += (forceY / this.mass) * timeStep;
+        this.velocity.z += (forceZ / this.mass) * timeStep;
+
+        this.position.x += this.velocity.x * timeStep;
+        this.position.y += this.velocity.y * timeStep;
+        this.position.z += this.velocity.z * timeStep;
+    }
+}
+
+const container = document.getElementById("swarmPreview");
+const activitySlider = document.getElementById("activitySlider");
+const activityValue = document.getElementById("activityValue");
+const periodSlider = document.getElementById("periodSlider");
+const periodValue = document.getElementById("periodValue");
+const dampingSlider = document.getElementById("dampingSlider");
+const dampingValue = document.getElementById("dampingValue");
+const restartButton = document.getElementById("restartButton");
+
+let scene;
+let camera;
+let renderer;
+let swarmElements = [];
+let targetElements = [];
+let targetBasePositions = [];
+let followedIndices = [];
+let waveforms;
+let startTime = 0;
+let lastTime = 0;
+let frameIndex = 0;
+let globalMorphIndex = 0;
+let isFrozen = false;
+let speedBoost = 0;
+let lastUserActivityTime = 0;
+let activityWakeRamp = 1;
+let activityWakeTarget = 1;
+let tapActivityBoost = 0;
+let tapCount = 0;
+let titlePrefixSprite = null;
+let titleSprite = null;
+let subtitleSprite = null;
+let subtitleDynamics = null;
+let subtitleHome = { x: 0, y: 0, z: 0.2 };
+let hintSprite = null;
+let lastActivityState = null;
+let activeStatusText = "Active";
+let pointerImpulse = {
+    x: 0,
+    y: 0,
+    strength: 0,
+    startTime: -999
+};
+let pointerIsActive = false;
+let lastTouchPulseTime = -999;
+let activePointerWorld = { x: 0, y: 0, z: 1.25 };
+
+function init() {
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(58, 1, 0.1, 100);
+    camera.position.set(0, 0, 3.45);
+
+    renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance"
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x000000, 0);
+    container.appendChild(renderer.domElement);
+
+    waveforms = generateWavelet(140, 1.9, 1.2, 0.5, 1.5, 6, 42);
+    targetBasePositions = generateSwarmElementPositions(previewConfig.targetCount);
+    followedIndices = generateFollowedIndices(previewConfig.targetCount, previewConfig.swarmCount, 3);
+
+    createTargets();
+    createFollowers();
+    createSceneText();
+    resizeRenderer();
+
+    startTime = performance.now();
+    lastTime = startTime;
+    // Start from a calm intro phase: the activity rises first, then the normal settle timer begins.
+    lastUserActivityTime = startTime + (previewConfig.introRiseDuration + previewConfig.introHoldDuration) * 1000;
+    requestAnimationFrame(animate);
+}
+
+function createTargets() {
+    const geometry = new THREE.SphereGeometry(previewConfig.targetSize, 12, 12);
+
+    for (let i = 0; i < previewConfig.targetCount; i++) {
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0x8fd3ff),
+            transparent: true,
+            opacity: 0.13,
+            depthWrite: false
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        const base = targetBasePositions[i];
+
+        mesh.position.set(base.x, base.y, base.z);
+        mesh.renderOrder = 5;
+        scene.add(mesh);
+
+        targetElements.push({
+            position: { ...base },
+            previousPosition: { ...base },
+            velocity: { x: 0, y: 0, z: 0 },
+            // Individual phase and amplitude keep the target field alive without adding random jitter.
+            breathPhase: Math.random() * Math.PI * 2,
+            breathAmplitude: getRandomRange(0.65, 1.35),
+            breathAxis: {
+                x: getRandomSigned(1),
+                y: getRandomSigned(1),
+                z: getRandomSigned(1)
+            },
+            mesh
+        });
+    }
+}
+
+function getFollowerNaturalPeriod() {
+    return previewConfig.periodSeconds;
+}
+
+function getFollowerDampingRatio() {
+    return previewConfig.dampingPercent / 100;
+}
+
+function applyFollowerDynamics(activityState = { settleScale: 1 }) {
+    const naturalPeriod = getFollowerNaturalPeriod();
+    const dampingRatio = getFollowerDampingRatio();
+
+    // As the demo settles, the followers become slower and slightly less damped.
+    // This keeps phase differences visible even during low-activity motion.
+    const periodActivityMultiplier = lerp(2.8, 1.0, activityState.settleScale);
+    const dampingActivityMultiplier = lerp(0.75, 1.0, activityState.settleScale);
+
+    swarmElements.forEach((swarm) => {
+        // Preserve each follower's individual response while the sliders change the global feel.
+        swarm.dynamics.naturalPeriod = naturalPeriod * swarm.periodMultiplier * periodActivityMultiplier;
+        swarm.dynamics.dampingRatio = dampingRatio * swarm.dampingMultiplier * dampingActivityMultiplier;
+    });
+}
+
+function createFollowers() {
+    const naturalPeriod = getFollowerNaturalPeriod();
+    const dampingRatio = getFollowerDampingRatio();
+    const geometry = new THREE.SphereGeometry(previewConfig.followerSize, 18, 18);
+
+    for (let i = 0; i < previewConfig.swarmCount; i++) {
+        // Mass is kept as a visible behavior parameter: light followers ring longer and react more to impulses.
+        // Note: in a normalized period/damping spring model, mass cancels out unless we map it to response traits.
+        const mass = getRandomRange(0.3, 4.0);
+        const mass01 = clamp01((mass - 0.3) / 3.7);
+
+        // Light followers get a shorter period and lower damping, so they wobble visibly after touch pulses.
+        const periodMultiplier = getRandomRange(0.75, 1.35) * lerp(0.72, 1.28, Math.sqrt(mass01));
+        const dampingMultiplier = getRandomRange(0.75, 1.20) * lerp(0.35, 1.15, Math.sqrt(mass01));
+        const impulseMultiplier = lerp(1.85, 0.55, Math.sqrt(mass01));
+
+        const dynamics = new ElementDynamics(
+            mass,
+            naturalPeriod * periodMultiplier,
+            dampingRatio * dampingMultiplier
+        );
+
+        // Start each follower near its own target so the intro begins calmly instead of snapping from random positions.
+        const targetIndex = followedIndices[i % followedIndices.length];
+        const startTarget = targetElements[targetIndex];
+        const startOffset = 0.055;
+
+        dynamics.position = {
+            x: startTarget.position.x + getRandomRange(-startOffset, startOffset),
+            y: startTarget.position.y + getRandomRange(-startOffset, startOffset),
+            z: startTarget.position.z + getRandomRange(-startOffset, startOffset)
+        };
+
+        dynamics.velocity = { x: 0, y: 0, z: 0 };
+
+        const material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(0xb7e4ff),
+            transparent: true,
+            opacity: 0.7,
+            // Followers write depth so near balls can pass visually over the in-scene title.
+            depthWrite: true
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(dynamics.position.x, dynamics.position.y, dynamics.position.z);
+        mesh.renderOrder = 20;
+        scene.add(mesh);
+
+        swarmElements.push({
+            dynamics,
+            mesh,
+            periodMultiplier,
+            dampingMultiplier,
+            impulseMultiplier
+        });
+    }
+}
+
+function animate(now) {
+    const elapsedSeconds = (now - startTime) / 1000;
+    const dt = Math.min((now - lastTime) / 1000, 1 / 30);
+    lastTime = now;
+    const frameScale = dt * 60;
+
+    // Smooth only the wake-up path. Settling is still handled by the long activity decay curve.
+    const wakeRiseAlpha = 1 - Math.exp(-dt / previewConfig.activityWakeRiseSeconds);
+    activityWakeRamp += (activityWakeTarget - activityWakeRamp) * wakeRiseAlpha;
+
+    // Tap activity is additive: each tap gives a small burst, then it decays with a 10 s time constant.
+    tapActivityBoost *= Math.exp(-dt / previewConfig.tapActivityDecaySeconds);
+
+    if (previewConfig.pauseMode === "freeze" && elapsedSeconds >= previewConfig.runDuration) {
+        if (!isFrozen) {
+            renderer.render(scene, camera);
+            isFrozen = true;
+        }
+        return;
+    }
+
+    if (pointerIsActive && elapsedSeconds - lastTouchPulseTime >= 0.5) {
+        triggerTouchImpulse(activePointerWorld, 0.42, false);
+        lastTouchPulseTime = elapsedSeconds;
+    }
+
+    const activityState = getActivityState(now);
+    const targetsAreMoving = activityState.effectiveActivity > 0.001;
+
+    updateActivityReadout(activityState);
+    updateTargets(targetsAreMoving, dt, frameScale, activityState, elapsedSeconds);
+    applyFollowerDynamics(activityState);
+    updateFollowers(dt);
+    updateSubtitleFollower(activityState, dt, elapsedSeconds);
+    updateVisualModulation(elapsedSeconds);
+    updateCamera(elapsedSeconds);
+    renderer.render(scene, camera);
+
+    requestAnimationFrame(animate);
+}
+
+function getActivityState(now) {
+    // Activity is measured from a virtual wake time. On first load the wake time is in the future,
+    // which creates a calm start, a short rise, then the normal settling curve.
+    const elapsedSinceUserActivity = (now - lastUserActivityTime) / 1000;
+    const introProgress = clamp01((elapsedSinceUserActivity + previewConfig.introRiseDuration) / previewConfig.introRiseDuration);
+    const introEnvelope = lerp(previewConfig.introStartActivity, 1.0, smoothstep01(introProgress));
+    const settleElapsed = Math.max(0, elapsedSinceUserActivity - previewConfig.runDuration);
+    const slowdownProgress = settleElapsed / previewConfig.slowdownDuration;
+    const easedSettle = 1 - smoothstep01(slowdownProgress);
+    const settledEnvelope = lerp(previewConfig.idleActivity, 1.0, easedSettle);
+    const envelopeActivity = previewConfig.activity * Math.min(introEnvelope, settledEnvelope);
+    const timeSettledActivity = Math.max(previewConfig.idleActivity, envelopeActivity);
+
+    // Touch wake is ramped, so the system grows back into activity instead of jumping instantly.
+    const rampedActivity = lerp(previewConfig.idleActivity, timeSettledActivity, activityWakeRamp);
+
+    // Slow activity breathing prevents the settled state from becoming mechanically static.
+    // Clamp to the manual slider value so the automatic modulation never exceeds the user's chosen maximum.
+    const breathWave = 0.5 + 0.5 * Math.sin(globalMorphIndex * 0.11 + 0.7);
+    const breathMultiplier = 1 - previewConfig.activityBreathDepth * 0.5 + breathWave * previewConfig.activityBreathDepth;
+    const boostedActivity = rampedActivity * breathMultiplier + tapActivityBoost;
+    const maxBoostedActivity = previewConfig.activity * (1 + previewConfig.tapActivityMaxRatio);
+    const effectiveActivity = clamp(boostedActivity, previewConfig.idleActivity, maxBoostedActivity);
+
+    // Use the over-range value for speed, but keep amplitude/dynamics bounded to avoid explosive motion.
+    const normalizedActivity = clamp01(effectiveActivity / Math.max(previewConfig.activity, 0.001));
+    const effectivePeriodSeconds = previewConfig.periodSeconds * lerp(2.8, 1.0, normalizedActivity);
+    const effectiveDampingPercent = previewConfig.dampingPercent * lerp(0.75, 1.0, normalizedActivity);
+
+    let statusText = "Active";
+    if (introProgress < 1 && tapActivityBoost <= 0.025) {
+        statusText = "Intro";
+    } else if (tapActivityBoost > 0.025) {
+        statusText = "Tap boost";
+    } else if (effectiveActivity <= previewConfig.idleActivity + 0.025 && slowdownProgress >= 1) {
+        statusText = "Idle";
+    } else if (activityWakeRamp < 0.94) {
+        statusText = "Waking";
+    } else if (slowdownProgress > 0) {
+        statusText = "Settling";
+    }
+
+    const state = {
+        settleScale: normalizedActivity,
+        effectiveActivity,
+        effectivePeriodSeconds,
+        effectiveDampingPercent,
+        tapBoost: tapActivityBoost,
+        amplitudeScale: lerp(0.18, 1.0, normalizedActivity),
+        statusText,
+        slowdownProgress: clamp01(slowdownProgress),
+        wakeRamp: activityWakeRamp,
+        introEnvelope
+    };
+
+    lastActivityState = state;
+    activeStatusText = statusText;
+    return state;
+}
+
+function updateActivityReadout(activityState) {
+    activityValue.textContent = `Set ${previewConfig.activity.toFixed(2)} · ${activityState.statusText} · Tap +${activityState.tapBoost.toFixed(2)} · Now ${activityState.effectiveActivity.toFixed(2)}`;
+    periodValue.textContent = `Set ${previewConfig.periodSeconds.toFixed(2)}s · Now ${activityState.effectivePeriodSeconds.toFixed(2)}s`;
+    dampingValue.textContent = `Set ${previewConfig.dampingPercent.toFixed(0)}% · Now ${activityState.effectiveDampingPercent.toFixed(0)}%`;
+}
+
+function wakePreview(options = {}) {
+    const now = performance.now();
+    const gradual = options.gradual === true;
+
+    lastUserActivityTime = now;
+    activityWakeTarget = 1;
+
+    if (gradual) {
+        const currentActivity = lastActivityState ? lastActivityState.effectiveActivity : previewConfig.idleActivity;
+        const denominator = Math.max(previewConfig.activity - previewConfig.idleActivity, 0.001);
+        const currentRamp = clamp01((currentActivity - previewConfig.idleActivity) / denominator);
+        activityWakeRamp = Math.min(activityWakeRamp, currentRamp);
+    } else {
+        activityWakeRamp = 1;
+    }
+
+    if (isFrozen) {
+        isFrozen = false;
+        lastTime = now;
+        requestAnimationFrame(animate);
+    }
+}
+
+function addTapActivityBoost() {
+    // A tap adds only a local activity burst. It does not reset the long settling timer.
+    const addAmount = previewConfig.activity * previewConfig.tapActivityAddRatio;
+    const maxAmount = previewConfig.activity * previewConfig.tapActivityMaxRatio;
+    tapActivityBoost = Math.min(tapActivityBoost + addAmount, maxAmount);
+}
+
+function updateTargets(targetsAreMoving, dt, frameScale, activityState, elapsedSeconds) {
+    if (targetsAreMoving) {
+        frameIndex += activityState.effectiveActivity * frameScale * (1 + speedBoost);
+    }
+
+    // Keep a separate slow morph clock alive even when the main target motion settles.
+    globalMorphIndex += dt * 60 * 0.055;
+
+    // Decay tap-induced speed boost smoothly back to normal.
+    speedBoost *= 0.965;
+
+    // Slow global transformation layer: the whole target network drifts and breathes together.
+    const globalMorph = getGlobalTargetMorph(globalMorphIndex);
+
+    targetElements.forEach((target, index) => {
+        target.previousPosition = { ...target.position };
+
+        if (targetsAreMoving) {
+            const delay = index * 0.42;
+            const exactIndex = (frameIndex + delay) % waveforms.x.length;
+            const lowerIndex = Math.floor(exactIndex);
+            const upperIndex = (lowerIndex + 1) % waveforms.x.length;
+            const fraction = exactIndex - lowerIndex;
+            const base = applyTargetBreath(getMorphedBasePosition(targetBasePositions[index], globalMorph), target, index, activityState);
+
+            target.position.x = base.x + interpolate(waveforms.x[lowerIndex], waveforms.x[upperIndex], fraction) * 0.38 * activityState.amplitudeScale;
+            target.position.y = base.y + interpolate(waveforms.y[lowerIndex], waveforms.y[upperIndex], fraction) * 0.32 * activityState.amplitudeScale;
+            target.position.z = base.z + interpolate(waveforms.z[lowerIndex], waveforms.z[upperIndex], fraction) * 0.48 * activityState.amplitudeScale;
+        } else {
+            target.position = applyTargetBreath(getMorphedBasePosition(targetBasePositions[index], globalMorph), target, index, activityState);
+        }
+
+        target.velocity.x = (target.position.x - target.previousPosition.x) / dt;
+        target.velocity.y = (target.position.y - target.previousPosition.y) / dt;
+        target.velocity.z = (target.position.z - target.previousPosition.z) / dt;
+
+        if (!targetsAreMoving) {
+            target.velocity.x = 0;
+            target.velocity.y = 0;
+            target.velocity.z = 0;
+        }
+
+        target.mesh.position.set(target.position.x, target.position.y, target.position.z);
+    });
+}
+
+
+function applyTargetBreath(base, target, index, activityState) {
+    // Small per-target breathing is applied to the target layer, not directly to followers.
+    // Followers inherit the motion through the spring dynamics, which preserves phase lag.
+    const phase = globalMorphIndex * previewConfig.targetBreathSpeed + target.breathPhase + index * 0.021;
+    const waveA = Math.sin(phase);
+    const waveB = Math.sin(phase * 0.73 + 1.4);
+    const depth = previewConfig.targetBreathDepth * target.breathAmplitude * lerp(0.65, 1.0, activityState.settleScale);
+    const radial = Math.sqrt(base.x * base.x + base.y * base.y) + 0.001;
+
+    return {
+        x: base.x + (base.x / radial) * waveA * depth * 0.45 + target.breathAxis.x * waveB * depth * 0.18,
+        y: base.y + (base.y / radial) * waveA * depth * 0.38 + target.breathAxis.y * waveB * depth * 0.14,
+        z: base.z + waveB * depth * 0.85 + target.breathAxis.z * waveA * depth * 0.20
+    };
+}
+
+function getGlobalTargetMorph(index) {
+    // Very slow wavelet reuse for global target-network translation and scaling.
+    const shiftX = sampleWaveform(waveforms.x, index * 0.72) * 0.18;
+    const shiftY = sampleWaveform(waveforms.y, index * 0.61) * 0.10;
+    const shiftZ = sampleWaveform(waveforms.z, index * 0.83) * 0.22;
+
+    const scaleX = 1.0 + sampleWaveform(waveforms.x, index * 0.37 + 19) * 0.065;
+    const scaleY = 1.0 + sampleWaveform(waveforms.y, index * 0.41 + 37) * 0.055;
+    const scaleZ = 1.0 + sampleWaveform(waveforms.z, index * 0.33 + 53) * 0.16;
+
+    return { shiftX, shiftY, shiftZ, scaleX, scaleY, scaleZ };
+}
+
+function getMorphedBasePosition(base, morph) {
+    return {
+        x: base.x * morph.scaleX + morph.shiftX,
+        y: base.y * morph.scaleY + morph.shiftY,
+        z: base.z * morph.scaleZ + morph.shiftZ
+    };
+}
+
+function sampleWaveform(values, exactIndex) {
+    const wrappedIndex = ((exactIndex % values.length) + values.length) % values.length;
+    const lowerIndex = Math.floor(wrappedIndex);
+    const upperIndex = (lowerIndex + 1) % values.length;
+    const fraction = wrappedIndex - lowerIndex;
+
+    return interpolate(values[lowerIndex], values[upperIndex], fraction);
+}
+
+function applyPointerImpulseToTarget(target, index, elapsedSeconds) {
+    const age = elapsedSeconds - pointerImpulse.startTime;
+    const impulseDuration = 2.4;
+
+    if (age < 0 || age > impulseDuration || pointerImpulse.strength <= 0) {
+        return;
+    }
+
+    const fade = 1 - smoothstep01(age / impulseDuration);
+    const base = targetBasePositions[index];
+    const dx = base.x - pointerImpulse.x;
+    const dy = base.y - pointerImpulse.y;
+    const distance = Math.sqrt(dx * dx + dy * dy) + 0.001;
+    const radius = 1.25;
+    const local = Math.max(0, 1 - distance / radius);
+    const impulse = local * local * pointerImpulse.strength * fade;
+
+    target.position.x += (dx / distance) * impulse;
+    target.position.y += (dy / distance) * impulse;
+    target.position.z += impulse * 0.38;
+}
+
+function handlePointerDown(event) {
+    addTapActivityBoost();
+    tapCount += 1;
+    updateSceneTextVisibility();
+    pointerIsActive = true;
+    activePointerWorld = getPointerWorldPositionOnPlane(event, 1.25);
+    triggerTouchImpulse(activePointerWorld, 0.9, true);
+    lastTouchPulseTime = (performance.now() - startTime) / 1000;
+}
+
+function handlePointerMove(event) {
+    if (!pointerIsActive) return;
+    activePointerWorld = getPointerWorldPositionOnPlane(event, 1.25);
+}
+
+function handlePointerEnd() {
+    pointerIsActive = false;
+}
+
+function triggerTouchImpulse(world, strength, isInitialPulse) {
+    const elapsedSeconds = (performance.now() - startTime) / 1000;
+
+    pointerImpulse.x = world.x;
+    pointerImpulse.y = world.y;
+    pointerImpulse.strength = 0.48 * strength;
+    pointerImpulse.startTime = elapsedSeconds;
+
+    // Keep speed boost almost neutral; the visible reaction comes from follower velocity.
+    if (isInitialPulse) {
+        speedBoost = Math.min(speedBoost + 0.18, 0.45);
+    }
+
+    // Event-level random multipliers make each touch pulse mechanically different.
+    // Requested test range: 0.5 ... 2.0 for each axis.
+    const pulseRandomScale = {
+        x: getRandomRange(0.5, 2.0),
+        y: getRandomRange(0.5, 2.0),
+        z: getRandomRange(0.5, 2.0)
+    };
+
+    const pulseRandomKick = {
+        x: getRandomSigned(0.08 * strength),
+        y: getRandomSigned(0.08 * strength),
+        z: getRandomSigned(0.18 * strength)
+    };
+
+    // Perspective attractor: the pointer is projected onto a visible plane in front of the field.
+    // Followers receive an impulse toward this 3D point, so the touch behaves like a small vacuum.
+    swarmElements.forEach((swarm) => {
+        const px = swarm.dynamics.position.x;
+        const py = swarm.dynamics.position.y;
+        const pz = swarm.dynamics.position.z;
+
+        const dx = world.x - px;
+        const dy = world.y - py;
+        const dz = world.z - pz;
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.001;
+
+        const dirX = dx / distance;
+        const dirY = dy / distance;
+        const dirZ = dz / distance;
+
+        // Nearby followers get the strongest pull, but distant followers still respond weakly.
+        const distanceFalloff = 0.22 + 0.78 * Math.exp(-distance * 0.95);
+        const baseImpulse = 1.15 * strength * distanceFalloff;
+
+        const localRandomScale = {
+            x: getRandomRange(0.5, 2.0),
+            y: getRandomRange(0.5, 2.0),
+            z: getRandomRange(0.5, 2.0)
+        };
+
+        const localRandomKick = {
+            x: getRandomSigned(0.05 * strength),
+            y: getRandomSigned(0.05 * strength),
+            z: getRandomSigned(0.10 * strength)
+        };
+
+        const impulseResponse = swarm.impulseMultiplier;
+
+        swarm.dynamics.velocity.x += (dirX * baseImpulse * pulseRandomScale.x * localRandomScale.x + pulseRandomKick.x + localRandomKick.x) * impulseResponse;
+        swarm.dynamics.velocity.y += (dirY * baseImpulse * pulseRandomScale.y * localRandomScale.y + pulseRandomKick.y + localRandomKick.y) * impulseResponse;
+        swarm.dynamics.velocity.z += (dirZ * baseImpulse * pulseRandomScale.z * localRandomScale.z + pulseRandomKick.z + localRandomKick.z) * impulseResponse;
+    });
+
+    if (subtitleDynamics) {
+        // The floating subtitle gets a restrained delayed pull toward the touch point.
+        const dx = world.x - subtitleDynamics.position.x;
+        const dy = world.y - subtitleDynamics.position.y;
+        const dz = world.z - subtitleDynamics.position.z;
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.001;
+        const subtitleImpulse = 0.16 * strength;
+
+        subtitleDynamics.velocity.x += (dx / distance) * subtitleImpulse;
+        subtitleDynamics.velocity.y += (dy / distance) * subtitleImpulse * 0.55;
+        subtitleDynamics.velocity.z += (dz / distance) * subtitleImpulse * 0.75;
+    }
+}
+
+function getPointerWorldPositionOnPlane(event, planeZ = 1.25) {
+    const rect = container.getBoundingClientRect();
+    const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+
+    const fovRadians = camera.fov * Math.PI / 180;
+    const distanceToPlane = camera.position.z - planeZ;
+    const visibleHeight = 2 * Math.tan(fovRadians / 2) * distanceToPlane;
+    const visibleWidth = visibleHeight * camera.aspect;
+
+    return {
+        x: ndcX * visibleWidth * 0.5,
+        y: ndcY * visibleHeight * 0.5,
+        z: planeZ
+    };
+}
+
+
+function updateFollowers(dt) {
+    swarmElements.forEach((swarm, index) => {
+        const targetIndex = followedIndices[index % followedIndices.length];
+        const target = targetElements[targetIndex];
+
+        swarm.dynamics.update(target.position, target.velocity, dt);
+        swarm.mesh.position.set(
+            swarm.dynamics.position.x,
+            swarm.dynamics.position.y,
+            swarm.dynamics.position.z
+        );
+    });
+}
+
+
+function updateSubtitleFollower(activityState, dt, elapsedSeconds) {
+    if (!subtitleSprite || !subtitleDynamics) return;
+
+    // The subtitle follows a calm moving target so it feels part of the kinetic scene,
+    // but the motion is kept small enough to preserve readability.
+    const activity = activityState.settleScale;
+    const phase = globalMorphIndex * 0.055 + elapsedSeconds * 0.035;
+    const target = {
+        x: subtitleHome.x + Math.sin(phase + 0.4) * 0.075 * activity,
+        y: subtitleHome.y + Math.sin(phase * 0.83 + 1.2) * 0.035 * activity,
+        z: subtitleHome.z + Math.sin(phase * 0.71 + 2.1) * 0.11 * activity
+    };
+
+    const targetVelocity = { x: 0, y: 0, z: 0 };
+
+    subtitleDynamics.naturalPeriod = lerp(4.2, 2.3, activity);
+    subtitleDynamics.dampingRatio = lerp(0.30, 0.46, activity);
+    subtitleDynamics.update(target, targetVelocity, dt);
+
+    subtitleSprite.position.set(
+        subtitleDynamics.position.x,
+        subtitleDynamics.position.y,
+        subtitleDynamics.position.z
+    );
+    subtitleSprite.material.opacity = 0.58 + activity * 0.22;
+}
+
+function updateVisualModulation(elapsedSeconds) {
+    const slowColorIndex = frameIndex * 0.32;
+
+    targetElements.forEach((target, index) => {
+        const waveIndex = Math.floor((slowColorIndex + index * 0.18) % waveforms.x.length);
+        const waveEnergy = Math.min(Math.abs(waveforms.x[waveIndex]), 1);
+        const pulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * 0.18 + index * 0.11);
+        const brightness = 0.64 + waveEnergy * 0.14 + pulse * 0.06;
+
+        // Brighter red target field for easier morph testing.
+        target.mesh.material.color.setRGB(brightness, 0.14, 0.10);
+        target.mesh.material.opacity = 0.42 + pulse * 0.16;
+    });
+
+    swarmElements.forEach((swarm) => {
+        const vx = swarm.dynamics.velocity.x;
+        const vy = swarm.dynamics.velocity.y;
+        const vz = swarm.dynamics.velocity.z;
+        const speedEnergy = Math.min(Math.sqrt(vx * vx + vy * vy + vz * vz) * 0.13, 1);
+        const base = 0.58 + speedEnergy * 0.34;
+
+        // Foreground followers brighten slightly when their motion is energetic.
+        swarm.mesh.material.color.setRGB(base * 0.72, base * 0.9, base);
+        swarm.mesh.material.opacity = 0.62 + speedEnergy * 0.25;
+    });
+}
+
+
+function updateCamera(elapsedSeconds) {
+    const orbit = Math.sin(elapsedSeconds * 0.18) * 0.14;
+    camera.position.x = orbit;
+    camera.position.y = Math.sin(elapsedSeconds * 0.13) * 0.05;
+    camera.lookAt(0, 0, 0);
+}
+
+
+function createSceneText() {
+    removeSceneText();
+
+    // Title lines are anchored in the 3D scene near the upper edge.
+    // They sit in front of the red target field but still behind foreground followers.
+    titlePrefixSprite = createTextSprite("Experiments with", {
+        fontSize: 58,
+        fontWeight: 620,
+        color: "rgba(216, 229, 240, 0.74)",
+        worldHeight: 0.24
+    });
+
+    titleSprite = createTextSprite("Interactive Content", {
+        fontSize: 104,
+        fontWeight: 760,
+        color: "rgba(245, 248, 252, 0.86)",
+        worldHeight: 0.66
+    });
+
+    // The subtitle is a soft follower object, not a fixed DOM label.
+    subtitleSprite = createTextSprite("Realtime audiovisual and physics-driven browser demos", {
+        fontSize: 58,
+        fontWeight: 620,
+        color: "rgba(216, 229, 240, 0.74)",
+        worldHeight: 0.22
+    });
+
+    subtitleDynamics = new ElementDynamics(1.0, 2.8, 0.42);
+
+    hintSprite = createTextSprite("tap here", {
+        fontSize: 42,
+        fontWeight: 700,
+        color: "rgba(143, 211, 255, 0.72)",
+        worldHeight: 0.13
+    });
+
+    // Render text after the red target field, but before foreground followers.
+    titlePrefixSprite.renderOrder = 10;
+    titleSprite.renderOrder = 10;
+    subtitleSprite.renderOrder = 10;
+    hintSprite.renderOrder = 10;
+
+    scene.add(titlePrefixSprite);
+    scene.add(titleSprite);
+    scene.add(subtitleSprite);
+    scene.add(hintSprite);
+    updateSceneTextLayout();
+    updateSceneTextVisibility();
+}
+
+function removeSceneText() {
+    if (titlePrefixSprite) {
+        scene.remove(titlePrefixSprite);
+        disposeTextSprite(titlePrefixSprite);
+        titlePrefixSprite = null;
+    }
+
+    if (titleSprite) {
+        scene.remove(titleSprite);
+        disposeTextSprite(titleSprite);
+        titleSprite = null;
+    }
+
+    if (subtitleSprite) {
+        scene.remove(subtitleSprite);
+        disposeTextSprite(subtitleSprite);
+        subtitleSprite = null;
+        subtitleDynamics = null;
+    }
+
+    if (hintSprite) {
+        scene.remove(hintSprite);
+        disposeTextSprite(hintSprite);
+        hintSprite = null;
+    }
+}
+
+function createTextSprite(text, options = {}) {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    const fontSize = options.fontSize || 48;
+    const fontWeight = options.fontWeight || 700;
+    const fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    const paddingX = Math.ceil(fontSize * 0.55);
+    const paddingY = Math.ceil(fontSize * 0.35);
+
+    context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+    const metrics = context.measureText(text);
+    canvas.width = Math.ceil(metrics.width + paddingX * 2);
+    canvas.height = Math.ceil(fontSize * 1.35 + paddingY * 2);
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillStyle = options.color || "rgba(255,255,255,0.8)";
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: true,
+        depthWrite: false,
+        opacity: 1
+    });
+
+    const sprite = new THREE.Sprite(material);
+    const worldHeight = options.worldHeight || 0.2;
+    const aspect = canvas.width / canvas.height;
+    sprite.scale.set(worldHeight * aspect, worldHeight, 1);
+    sprite.userData.worldHeight = worldHeight;
+    sprite.userData.aspect = aspect;
+
+    return sprite;
+}
+
+function disposeTextSprite(sprite) {
+    if (sprite.material && sprite.material.map) {
+        sprite.material.map.dispose();
+    }
+    if (sprite.material) {
+        sprite.material.dispose();
+    }
+}
+
+function updateSceneTextLayout() {
+    if (!titlePrefixSprite || !titleSprite || !subtitleSprite || !hintSprite || !camera) return;
+
+    const textPlaneZ = 1.10;
+    const subtitlePlaneZ = 1.02;
+    const visible = getVisibleSizeAtPlane(textPlaneZ);
+    const subtitleVisible = getVisibleSizeAtPlane(subtitlePlaneZ);
+
+    titlePrefixSprite.position.set(0, visible.height * 0.39, textPlaneZ);
+    titleSprite.position.set(0, visible.height * 0.295, textPlaneZ);
+    subtitleHome = {
+        x: 0,
+        y: -subtitleVisible.height * 0.395,
+        z: subtitlePlaneZ
+    };
+
+    if (subtitleDynamics && !subtitleDynamics.userInitialized) {
+        subtitleDynamics.position = { ...subtitleHome };
+        subtitleDynamics.userInitialized = true;
+    }
+
+    if (subtitleSprite && subtitleDynamics) {
+        subtitleSprite.position.set(
+            subtitleDynamics.position.x,
+            subtitleDynamics.position.y,
+            subtitleDynamics.position.z
+        );
+    }
+
+    hintSprite.position.set(visible.width * 0.33, 0, textPlaneZ);
+}
+
+function updateSceneTextVisibility() {
+    if (!hintSprite) return;
+    hintSprite.visible = tapCount < 3;
+}
+
+function getVisibleSizeAtPlane(planeZ) {
+    const fovRadians = camera.fov * Math.PI / 180;
+    const distanceToPlane = camera.position.z - planeZ;
+    const height = 2 * Math.tan(fovRadians / 2) * distanceToPlane;
+    const width = height * camera.aspect;
+
+    return { width, height };
+}
+
+function resizeRenderer() {
+    const rect = container.getBoundingClientRect();
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    updateSceneTextLayout();
+}
+
+function generateWavelet(baseLength, baseFrequency, freqVariation, baseTau, tauVariation, numWavelets, overlapPercent = 30) {
+    const overlapFactor = 1 - overlapPercent / 100;
+    const overlapLength = Math.floor(baseLength * overlapFactor);
+    const totalLength = baseLength + (numWavelets - 1) * overlapLength;
+
+    const x = new Array(totalLength).fill(0);
+    const y = new Array(totalLength).fill(0);
+    const z = new Array(totalLength).fill(0);
+
+    for (let i = 0; i < numWavelets; i++) {
+        const tauX = baseTau + (Math.random() - 0.5) * tauVariation;
+        const tauY = baseTau + (Math.random() - 0.5) * tauVariation;
+        const tauZ = baseTau + (Math.random() - 0.5) * tauVariation;
+        const freqX = baseFrequency + (Math.random() - 0.5) * freqVariation;
+        const freqY = baseFrequency + (Math.random() - 0.5) * freqVariation;
+        const freqZ = baseFrequency + (Math.random() - 0.5) * freqVariation;
+        const startOffset = i * overlapLength;
+
+        for (let j = 0; j < baseLength; j++) {
+            const t = j / baseLength;
+            const windowValue = Math.sin(Math.PI * t) ** 2;
+
+            x[startOffset + j] += Math.sin(2 * Math.PI * freqX * t) * Math.exp(-tauX * t) * windowValue;
+            y[startOffset + j] += Math.sin(2 * Math.PI * freqY * t) * Math.exp(-tauY * t) * windowValue;
+            z[startOffset + j] += Math.sin(2 * Math.PI * freqZ * t) * Math.exp(-tauZ * t) * windowValue;
+        }
+    }
+
+    return { x, y, z };
+}
+
+function generateSwarmElementPositions(numElements) {
+    const positions = [];
+
+    // Use a landscape grid because the hero frame is wide.
+    const cols = Math.ceil(Math.sqrt(numElements * 2.1));
+    const rows = Math.ceil(numElements / cols);
+    const spacingX = 0.34;
+    const spacingY = 0.30;
+    const flattenZ = 1.15;
+
+    for (let i = 0; i < numElements; i++) {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const x = (col - (cols - 1) / 2) * spacingX;
+        const y = (row - (rows - 1) / 2) * spacingY;
+        const z = (Math.random() - 0.5) * flattenZ;
+
+        positions.push({ x, y, z });
+    }
+
+    return positions;
+}
+
+function generateFollowedIndices(numTargets, count, spreadFactor) {
+    const indices = [];
+    const centerIndex = Math.floor(numTargets / 2);
+    const start = -Math.floor(count / 2);
+
+    for (let i = 0; i < count; i++) {
+        const targetIndex = centerIndex + (start + i) * spreadFactor;
+        indices.push(Math.max(0, Math.min(numTargets - 1, targetIndex)));
+    }
+
+    return indices;
+}
+
+function getRandomVariance(value, variance) {
+    return value + Math.random() * variance - variance / 2;
+}
+
+function getRandomRange(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function getRandomSigned(amount) {
+    return (Math.random() * 2 - 1) * amount;
+}
+
+function interpolate(value1, value2, fraction) {
+    return value1 + (value2 - value1) * fraction;
+}
+
+function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function clamp01(value) {
+    return clamp(value, 0, 1);
+}
+
+function smoothstep01(value) {
+    const x = clamp01(value);
+    return x * x * (3 - 2 * x);
+}
+
+function lerp(a, b, t) {
+    return a + (b - a) * t;
+}
+
+
+function restartPreview() {
+    swarmElements.forEach((swarm) => scene.remove(swarm.mesh));
+    targetElements.forEach((target) => scene.remove(target.mesh));
+    removeSceneText();
+
+    swarmElements = [];
+    targetElements = [];
+    targetBasePositions = [];
+    followedIndices = [];
+
+    waveforms = generateWavelet(140, 1.9, 1.2, 0.5, 1.5, 6, 42);
+    targetBasePositions = generateSwarmElementPositions(previewConfig.targetCount);
+    followedIndices = generateFollowedIndices(previewConfig.targetCount, previewConfig.swarmCount, 3);
+
+    createTargets();
+    createFollowers();
+    createSceneText();
+
+    startTime = performance.now();
+    lastTime = startTime;
+    lastUserActivityTime = startTime + (previewConfig.introRiseDuration + previewConfig.introHoldDuration) * 1000;
+    frameIndex = 0;
+    globalMorphIndex = 0;
+    isFrozen = false;
+    speedBoost = 0;
+    activityWakeRamp = 1;
+    activityWakeTarget = 1;
+    tapActivityBoost = 0;
+    tapCount = 0;
+    lastActivityState = null;
+    applyFollowerDynamics({ settleScale: 1 });
+    pointerImpulse.strength = 0;
+    pointerImpulse.startTime = -999;
+    pointerIsActive = false;
+    lastTouchPulseTime = -999;
+}
+
+activitySlider.addEventListener("input", (event) => {
+    previewConfig.activity = parseFloat(event.target.value);
+    wakePreview({ gradual: false });
+    updateActivityReadout(getActivityState(performance.now()));
+});
+
+periodSlider.addEventListener("input", (event) => {
+    previewConfig.periodSeconds = parseFloat(event.target.value);
+    wakePreview();
+    const state = getActivityState(performance.now());
+    applyFollowerDynamics(state);
+    updateActivityReadout(state);
+});
+
+dampingSlider.addEventListener("input", (event) => {
+    previewConfig.dampingPercent = parseFloat(event.target.value);
+    wakePreview();
+    const state = getActivityState(performance.now());
+    applyFollowerDynamics(state);
+    updateActivityReadout(state);
+});
+
+restartButton.addEventListener("click", restartPreview);
+container.addEventListener("pointerdown", handlePointerDown);
+container.addEventListener("pointermove", handlePointerMove);
+container.addEventListener("pointerup", handlePointerEnd);
+container.addEventListener("pointercancel", handlePointerEnd);
+container.addEventListener("pointerleave", handlePointerEnd);
+
+window.addEventListener("resize", resizeRenderer);
+init();
+</script>
+</body>
+</html>
