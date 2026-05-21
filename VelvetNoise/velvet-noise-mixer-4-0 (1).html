@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Velvet Noise Mixer 4.0</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #2a2a2a;
+    color: #e0e0e0;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  h1 { color: #999; text-align: center; margin-bottom: 5px; }
+  .version { color: #666; text-align: center; margin-bottom: 20px; font-size: 14px; }
+  .section {
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+  }
+  .section h2 { color: #888; margin: 0 0 10px; font-size: 16px; }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .control-group { display: flex; flex-direction: column; }
+  label { color: #888; font-size: 12px; margin-bottom: 3px; text-transform: uppercase; }
+  input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    -webkit-appearance: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #666;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .value-display { font-size: 10px; color: #666; text-align: right; margin-top: 2px; }
+  .button-row { display: flex; gap: 8px; margin-top: 10px; }
+  button {
+    flex: 1;
+    padding: 8px;
+    background: #333;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  button:hover { background: #444; }
+  .mute-button { background: #f44336; }
+  .mute-button.muted { background: #4CAF50; }
+  .compensation-info {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
+    grid-column: 1 / -1;
+  }
+  .compensation-title { font-weight: bold; margin-bottom: 5px; color: #888; }
+  .compensation-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .compensation-label { color: #666; font-size: 11px; }
+  .compensation-value { font-weight: bold; color: #aaa; font-size: 11px; }
+  .lfo-controls {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
+    grid-column: 1 / -1;
+  }
+  .lfo-title { color: #888; font-weight: bold; margin-bottom: 5px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Velvet Noise Mixer</h1>
+<div class="version">Version 4.0 - 1 Layer</div>
+
+<div class="section">
+<h2>Master</h2>
+<div class="controls">
+<div class="control-group">
+<label for="master-volume">Volume</label>
+<input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.5">
+<div class="value-display" id="master-volume-value">0.50</div>
+</div>
+</div>
+<div class="button-row">
+<button onclick="startAll()">Start</button>
+<button onclick="stopAll()">Stop</button>
+</div>
+</div>
+
+<div class="section">
+<h2>Stereo Reverb</h2>
+<div class="controls">
+<div class="control-group">
+<label for="reverb-wet">Wet</label>
+<input type="range" id="reverb-wet" min="0" max="1" step="0.01" value="0.3">
+<div class="value-display" id="reverb-wet-value">0.30</div>
+</div>
+<div class="control-group">
+<label for="reverb-dry">Dry</label>
+<input type="range" id="reverb-dry" min="0" max="1" step="0.01" value="0.7">
+<div class="value-display" id="reverb-dry-value">0.70</div>
+</div>
+<div class="control-group">
+<label for="reverb-decay">Decay</label>
+<input type="range" id="reverb-decay" min="0.5" max="3" step="0.1" value="1.5">
+<div class="value-display" id="reverb-decay-value">1.5</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>Layer 1</h2>
+<div class="controls">
+<div class="control-group">
+<label for="layer1-density">Density</label>
+<input type="range" id="layer1-density" min="0.01" max="0.5" step="0.01" value="0.3">
+<div class="value-display" id="layer1-density-value">0.30</div>
+</div>
+<div class="control-group">
+<label for="layer1-frequency">Frequency</label>
+<input type="range" id="layer1-frequency" min="0" max="1" step="0.001" value="0.5">
+<div class="value-display" id="layer1-frequency-value">1000 Hz</div>
+</div>
+<div class="control-group">
+<label for="layer1-q">Q</label>
+<input type="range" id="layer1-q" min="0.1" max="10" step="0.1" value="0.7">
+<div class="value-display" id="layer1-q-value">0.70</div>
+</div>
+<div class="control-group">
+<label for="layer1-pan">Pan</label>
+<input type="range" id="layer1-pan" min="-1" max="1" step="0.1" value="-0.5">
+<div class="value-display" id="layer1-pan-value">-0.50</div>
+</div>
+<div class="control-group">
+<label for="layer1-volume">Volume</label>
+<input type="range" id="layer1-volume" min="0" max="1" step="0.01" value="0.5">
+<div class="value-display" id="layer1-volume-value">0.50</div>
+</div>
+
+<div class="compensation-info">
+<div class="compensation-title">Compensation Values:</div>
+<div class="compensation-row">
+<span class="compensation-label">EQ Comp:</span>
+<span class="compensation-value eq-comp-value">0.0 dB</span>
+</div>
+<div class="compensation-row">
+<span class="compensation-label">LowShelf:</span>
+<span class="compensation-value lowshelf-value">0.0 dB</span>
+</div>
+<div class="compensation-row">
+<span class="compensation-label">Total:</span>
+<span class="compensation-value total-comp-value">0.0 dB</span>
+</div>
+<div class="compensation-row">
+<span class="compensation-label">Q:</span>
+<span class="compensation-value q-display-value">0.70</span>
+</div>
+<div class="compensation-row">
+<span class="compensation-label">Bandwidth:</span>
+<span class="compensation-value bandwidth-value">0 Hz</span>
+</div>
+</div>
+
+<div class="lfo-controls">
+<div class="lfo-title">LFO for low pass frequency modulation</div>
+<div class="controls">
+<div class="control-group">
+<label for="layer1-lfo-amp">LFO Amplitude</label>
+<input type="range" id="layer1-lfo-amp" min="0.7" max="1.4" step="0.01" value="1.0">
+<div class="value-display" id="layer1-lfo-amp-value">1.00</div>
+</div>
+<div class="control-group">
+<label for="layer1-lfo-freq">LFO Frequency</label>
+<input type="range" id="layer1-lfo-freq" min="0.2" max="4" step="0.1" value="1.0">
+<div class="value-display" id="layer1-lfo-freq-value">1.00 Hz</div>
+</div>
+</div>
+</div>
+
+<div class="button-row">
+<button onclick="layer1.start()">Start</button>
+<button onclick="layer1.stop()">Stop</button>
+<button id="layer1-mute" class="mute-button" onclick="layer1.toggleMute()">Mute</button>
+</div>
+</div>
+</div>
+
+<script>
+// ============================================
+// Constants - v4.0: MIN_FREQ = 20Hz (v2.9 was 50Hz)
+// ============================================
+const MIN_FREQ = 20;
+const MAX_FREQ = 10000;
+const FREQ_RATIO = MAX_FREQ / MIN_FREQ;
+
+function sliderToFrequency(value) {
+    return MIN_FREQ * Math.pow(FREQ_RATIO, value);
+}
+
+function frequencyToSlider(freq) {
+    return Math.log(freq / MIN_FREQ) / Math.log(FREQ_RATIO);
+}
+
+// ============================================
+// AudioEngine Class
+// ============================================
+class AudioEngine {
+    constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.reverbDryGain = null;
+        this.reverbWetGain = null;
+        this.leftConvolver = null;
+        this.rightConvolver = null;
+        this.channelMerger = null;
+        this.layers = [];
+        this.initialized = false;
+    }
+
+    async init() {
+        if (this.initialized) return;
+
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Master gain
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.5;
+        this.masterGain.connect(this.ctx.destination);
+
+        // Reverb: dry path
+        this.reverbDryGain = this.ctx.createGain();
+        this.reverbDryGain.gain.value = 0.7;
+        this.reverbDryGain.connect(this.ctx.destination);
+
+        // Reverb: wet path
+        this.reverbWetGain = this.ctx.createGain();
+        this.reverbWetGain.gain.value = 0.3;
+
+        this.channelMerger = this.ctx.createChannelMerger(2);
+        this.channelMerger.connect(this.reverbWetGain);
+        this.reverbWetGain.connect(this.ctx.destination);
+
+        // Stereo convolvers
+        this.leftConvolver = this.ctx.createConvolver();
+        this.rightConvolver = this.ctx.createConvolver();
+        this.leftConvolver.connect(this.channelMerger, 0, 0);
+        this.rightConvolver.connect(this.channelMerger, 0, 1);
+
+        // Connect master to reverb
+        this.masterGain.connect(this.reverbDryGain);
+        this.masterGain.connect(this.leftConvolver);
+        this.masterGain.connect(this.rightConvolver);
+
+        // Initialize impulse response
+        await this.updateStereoImpulseResponse(1.5);
+
+        this.initialized = true;
+    }
+
+    async resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+            await this.ctx.resume();
+        }
+    }
+
+    async updateStereoImpulseResponse(decay) {
+        const sampleRate = this.ctx.sampleRate;
+        const duration = 4;
+        const length = sampleRate * duration;
+
+        const leftBuffer = this.ctx.createBuffer(1, length, sampleRate);
+        const leftData = leftBuffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+            leftData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sampleRate * decay));
+        }
+
+        const rightBuffer = this.ctx.createBuffer(1, length, sampleRate);
+        const rightData = rightBuffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+            rightData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sampleRate * decay * 0.8));
+        }
+
+        this.leftConvolver.buffer = leftBuffer;
+        this.rightConvolver.buffer = rightBuffer;
+    }
+
+    addLayer(layer) {
+        this.layers.push(layer);
+    }
+
+    getContext() {
+        return this.ctx;
+    }
+
+    getMasterGain() {
+        return this.masterGain;
+    }
+}
+
+// ============================================
+// Layer Class
+// ============================================
+class Layer {
+    constructor(id, audioEngine) {
+        this.id = id;
+        this.audioEngine = audioEngine;
+        this.ctx = null;
+        
+        // Audio nodes - initialized in buildAudioGraph
+        this.bufferSource = null;
+        this.lowpassFilter = null;
+        this.eqCompGain = null;
+        this.panner = null;
+        this.gain = null;
+        this.lfo = null;
+        this.lfoGain = null;
+        
+        // State
+        this.isPlaying = false;
+        this.isMuted = false;
+        this.noiseBuffer = null;
+        this.baseFrequency = 1000;
+        
+        // Parameters - matching v2.9 defaults
+        this.params = {
+            density: 0.3,
+            frequency: frequencyToSlider(1000),
+            q: 0.7,
+            pan: -0.5,
+            volume: 0.5,
+            lfoAmplitude: 1.0,
+            lfoFrequency: 1.0
+        };
+    }
+
+    createNoiseBuffer() {
+        const ctx = this.audioEngine.getContext();
+        if (!ctx) return null;
+        
+        const bufferSize = ctx.sampleRate * 2;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() < this.params.density ? (Math.random() < 0.5 ? 0.2 : -0.2) : 0;
+        }
+        return buffer;
+    }
+
+    updateNoiseBuffer() {
+        if (!this.audioEngine.getContext()) return;
+        const newBuffer = this.createNoiseBuffer();
+        if (newBuffer) {
+            this.noiseBuffer = newBuffer;
+            if (this.bufferSource) {
+                this.bufferSource.buffer = newBuffer;
+            }
+        }
+    }
+
+    updateEQCompensation(frequency, gainNode) {
+        const referenceFreq = 1000;
+        const octavesFromRef = Math.log2(frequency / referenceFreq);
+        const eqGainInDB = octavesFromRef * -6;
+        const eqLinearGain = Math.pow(10, eqGainInDB / 20);
+
+        const lowshelfFreq = 300;
+        let lowshelfGain = 0;
+        if (frequency < lowshelfFreq) {
+            const octavesBelow = Math.log2(lowshelfFreq / frequency);
+            lowshelfGain = Math.min(12, octavesBelow * 4);
+        }
+
+        const totalGainInDB = eqGainInDB + lowshelfGain;
+        const linearGain = Math.pow(10, totalGainInDB / 20);
+        gainNode.gain.value = linearGain;
+
+        return { eqGain: eqGainInDB, lowshelfGain: lowshelfGain, totalGain: totalGainInDB, bandwidth: frequency / linearGain };
+    }
+
+    updateCompensationDisplay() {
+        const freq = this.baseFrequency;
+        const referenceFreq = 1000;
+        const octavesFromRef = Math.log2(freq / referenceFreq);
+        const eqGainInDB = octavesFromRef * -6;
+        const lowshelfFreq = 300;
+        let lowshelfGain = 0;
+        if (freq < lowshelfFreq) {
+            const octavesBelow = Math.log2(lowshelfFreq / freq);
+            lowshelfGain = Math.min(12, octavesBelow * 4);
+        }
+        const totalGainInDB = eqGainInDB + lowshelfGain;
+        const qValue = this.params.q.toFixed(2);
+        const bandwidth = (freq / this.params.q).toFixed(0);
+
+        document.querySelector('#layer1 .eq-comp-value').textContent = eqGainInDB.toFixed(1) + " dB";
+        document.querySelector('#layer1 .lowshelf-value').textContent = lowshelfGain.toFixed(1) + " dB";
+        document.querySelector('#layer1 .total-comp-value').textContent = totalGainInDB.toFixed(1) + " dB";
+        document.querySelector('#layer1 .q-display-value').textContent = qValue;
+        document.querySelector('#layer1 .bandwidth-value').textContent = bandwidth + " Hz";
+    }
+
+    buildAudioGraph() {
+        const ctx = this.audioEngine.getContext();
+        if (!ctx) return;
+
+        // Create noise buffer
+        this.noiseBuffer = this.createNoiseBuffer();
+
+        // Create buffer source
+        this.bufferSource = ctx.createBufferSource();
+        this.bufferSource.buffer = this.noiseBuffer;
+        this.bufferSource.loop = true;
+
+        // Lowpass filter - use current params
+        this.lowpassFilter = ctx.createBiquadFilter();
+        this.lowpassFilter.type = 'lowpass';
+        this.lowpassFilter.frequency.value = 0.7 * this.baseFrequency;
+        this.lowpassFilter.Q.value = this.params.q;
+
+        // EQ compensation gain
+        this.eqCompGain = ctx.createGain();
+        this.updateEQCompensation(this.baseFrequency, this.eqCompGain);
+
+        // Panner
+        this.panner = ctx.createStereoPanner();
+        this.panner.pan.value = this.params.pan;
+
+        // Gain
+        this.gain = ctx.createGain();
+        this.gain.gain.value = this.isMuted ? 0 : this.params.volume;
+
+        // LFO for frequency modulation
+        this.lfo = ctx.createOscillator();
+        this.lfo.type = 'sine';
+        this.lfo.frequency.value = this.params.lfoFrequency;
+
+        this.lfoGain = ctx.createGain();
+        const freq = this.baseFrequency || 1000;
+        const amp = this.params.lfoAmplitude;
+        this.lfoGain.gain.value = (amp - 0.7) * freq / 2;
+
+        // Connect LFO to filter frequency
+        this.lfo.connect(this.lfoGain);
+        this.lfoGain.connect(this.lowpassFilter.frequency);
+
+        // Connect audio graph
+        this.bufferSource.connect(this.lowpassFilter);
+        this.lowpassFilter.connect(this.eqCompGain);
+        this.eqCompGain.connect(this.panner);
+        this.panner.connect(this.gain);
+        this.gain.connect(this.audioEngine.masterGain);
+
+        // Start LFO
+        this.lfo.start(0);
+
+        // Update compensation display
+        this.updateCompensationDisplay();
+    }
+
+    updateFrequency() {
+        if (!this.lowpassFilter) return;
+        const freq = sliderToFrequency(this.params.frequency);
+        this.baseFrequency = freq;
+        this.lowpassFilter.frequency.value = 0.7 * freq;
+        if (this.eqCompGain) {
+            this.updateEQCompensation(freq, this.eqCompGain);
+            this.updateCompensationDisplay();
+        }
+        if (this.lfoGain) {
+            const amp = this.params.lfoAmplitude;
+            this.lfoGain.gain.value = (amp - 0.7) * freq / 2;
+        }
+    }
+
+    updateLFO() {
+        if (!this.lfoGain) return;
+        const freq = this.baseFrequency || 1000;
+        const amp = this.params.lfoAmplitude;
+        this.lfoGain.gain.value = (amp - 0.7) * freq / 2;
+    }
+
+    async start() {
+        if (this.isPlaying) return;
+        
+        await this.audioEngine.init();
+        await this.audioEngine.resume();
+        
+        this.buildAudioGraph();
+        this.bufferSource.start(0);
+        this.isPlaying = true;
+    }
+
+    stop() {
+        if (!this.isPlaying) return;
+        
+        if (this.bufferSource) this.bufferSource.stop(0);
+        if (this.lfo) this.lfo.stop(0);
+        
+        // Disconnect all nodes
+        [this.bufferSource, this.lowpassFilter, this.eqCompGain, this.panner, this.gain, this.lfoGain, this.lfo].forEach(n => {
+            if (n) n.disconnect();
+        });
+        
+        this.bufferSource = null;
+        this.isPlaying = false;
+    }
+
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        if (this.gain) {
+            this.gain.gain.value = this.isMuted ? 0 : this.params.volume;
+        }
+        const btn = document.getElementById(`layer1-mute`);
+        if (btn) {
+            btn.textContent = this.isMuted ? 'Unmute' : 'Mute';
+            btn.classList.toggle('muted', this.isMuted);
+        }
+    }
+
+    updateParam(param, value) {
+        this.params[param] = value;
+        
+        if (!this.audioEngine.getContext()) return;
+
+        switch (param) {
+            case 'density':
+                this.updateNoiseBuffer();
+                break;
+            case 'frequency':
+                this.updateFrequency();
+                break;
+            case 'q':
+                if (this.lowpassFilter) {
+                    this.lowpassFilter.Q.value = value;
+                    this.updateCompensationDisplay();
+                }
+                break;
+            case 'pan':
+                if (this.panner) this.panner.pan.value = value;
+                break;
+            case 'volume':
+                if (this.gain) this.gain.gain.value = this.isMuted ? 0 : value;
+                break;
+            case 'lfoAmplitude':
+                this.updateLFO();
+                break;
+            case 'lfoFrequency':
+                if (this.lfo) this.lfo.frequency.value = value;
+                break;
+        }
+    }
+}
+
+// ============================================
+// Initialize Application
+// ============================================
+const audioEngine = new AudioEngine();
+const layer1 = new Layer(1, audioEngine);
+audioEngine.addLayer(layer1);
+
+async function startAll() {
+    await audioEngine.init();
+    await audioEngine.resume();
+    layer1.start();
+}
+
+function stopAll() {
+    layer1.stop();
+}
+
+// ============================================
+// UI Event Handlers
+// ============================================
+function setupUI() {
+    // Layer 1 controls
+    const layerControls = {
+        density: { display: v => v.toFixed(2) },
+        frequency: { display: v => `${Math.round(sliderToFrequency(v))} Hz` },
+        q: { display: v => v.toFixed(2) },
+        pan: { display: v => v.toFixed(2) },
+        volume: { display: v => v.toFixed(2) },
+        lfoAmplitude: { display: v => v.toFixed(2) },
+        lfoFrequency: { display: v => `${v} Hz` }
+    };
+
+    Object.entries(layerControls).forEach(([param, config]) => {
+        const slider = document.getElementById(`layer1-${param}`);
+        const display = document.getElementById(`layer1-${param}-value`);
+        if (slider && display) {
+            slider.addEventListener('input', () => {
+                const value = parseFloat(slider.value);
+                layer1.updateParam(param, value);
+                display.textContent = config.display(value);
+            });
+            display.textContent = config.display(parseFloat(slider.value));
+        }
+    });
+
+    // Reverb controls
+    const wetSlider = document.getElementById('reverb-wet');
+    const drySlider = document.getElementById('reverb-dry');
+    const wetDisplay = document.getElementById('reverb-wet-value');
+    const dryDisplay = document.getElementById('reverb-dry-value');
+
+    function updateReverbMix() {
+        const wetValue = parseFloat(wetSlider.value);
+        const dryValue = 1 - wetValue;
+        if (audioEngine.reverbWetGain) audioEngine.reverbWetGain.gain.value = wetValue;
+        if (audioEngine.reverbDryGain) audioEngine.reverbDryGain.gain.value = dryValue;
+        drySlider.value = dryValue;
+        wetDisplay.textContent = wetValue.toFixed(2);
+        dryDisplay.textContent = dryValue.toFixed(2);
+    }
+
+    wetSlider.addEventListener('input', updateReverbMix);
+    drySlider.addEventListener('input', function() {
+        const dryValue = parseFloat(this.value);
+        wetSlider.value = 1 - dryValue;
+        updateReverbMix();
+    });
+
+    // Reverb decay
+    const decaySlider = document.getElementById('reverb-decay');
+    const decayDisplay = document.getElementById('reverb-decay-value');
+    decaySlider.addEventListener('input', async function() {
+        const decay = parseFloat(this.value);
+        decayDisplay.textContent = decay;
+        if (audioEngine.initialized) {
+            await audioEngine.updateStereoImpulseResponse(decay);
+        }
+    });
+
+    // Master volume
+    const masterSlider = document.getElementById('master-volume');
+    const masterDisplay = document.getElementById('master-volume-value');
+    masterSlider.addEventListener('input', function() {
+        const value = parseFloat(this.value);
+        if (audioEngine.masterGain) {
+            audioEngine.masterGain.gain.value = value;
+        }
+        masterDisplay.textContent = value.toFixed(2);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', setupUI);
+
+document.addEventListener('click', async function() {
+    await audioEngine.init();
+    await audioEngine.resume();
+}, { once: true });
+</script>
+</body>
+</html>
