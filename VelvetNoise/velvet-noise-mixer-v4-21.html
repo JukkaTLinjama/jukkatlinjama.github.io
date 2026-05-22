@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velvet Noise Mixer 4.21</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #2a2a2a;
+    color: #e0e0e0;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  h1 { color: #d8d8d8; text-align: center; margin-bottom: 5px; }
+  .version { color: #b8b8b8; text-align: center; margin-bottom: 20px; font-size: 14px; }
+  .section, .layer-card {
+    background: #1a1a1a;
+    border: 1px solid #4a4a4a;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+  }
+  .section h2, .layer-title { color: #d0d0d0; margin: 0 0 10px; font-size: 16px; }
+  .layer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .layer-subtitle {
+    color: #aaa;
+    font-size: 11px;
+    margin-top: -5px;
+    margin-bottom: 10px;
+  }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .control-group { display: flex; flex-direction: column; }
+  label { color: #d0d0d0; font-size: 12px; margin-bottom: 3px; text-transform: uppercase; }
+  input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    -webkit-appearance: none;
+  }
+  .slider-visual-wrap {
+    position: relative;
+    height: 18px;
+    display: flex;
+    align-items: center;
+  }
+  .slider-visual-wrap input[type="range"] {
+    position: relative;
+    z-index: 2;
+    margin: 0;
+    background: rgba(80, 80, 80, 0.65);
+  }
+  .drift-marker {
+    position: absolute;
+    z-index: 1;
+    left: 0%;
+    top: 50%;
+    width: 3px;
+    height: 16px;
+    border-radius: 2px;
+    background: #d0c070;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    transition: left 0.7s ease, opacity 0.25s ease;
+    pointer-events: none;
+  }
+  .slider-visual-wrap.has-drift .drift-marker {
+    opacity: 0.9;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #888;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #888;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .value-display { font-size: 10px; color: #c8c8c8; text-align: right; margin-top: 2px; }
+  .button-row { display: flex; gap: 8px; margin-top: 10px; }
+  .layer-buttons { display: flex; gap: 8px; min-width: 160px; }
+  button {
+    flex: 1;
+    padding: 8px;
+    background: #333;
+    color: #f0f0f0;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  button:hover { background: #444; }
+  .mute-button { background: #864040; }
+  .mute-button.muted { background: #3d7040; }
+  .pulse-button { background: #4f5870; }
+  .compensation-info {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
+  }
+  .compensation-title { font-weight: bold; margin-bottom: 5px; color: #d0d0d0; font-size: 12px; }
+  .compensation-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .compensation-label { color: #b8b8b8; font-size: 11px; }
+  .compensation-value { font-weight: bold; color: #e0e0e0; font-size: 11px; }
+  .test-description { color: #b8b8b8; text-align: center; margin: 4px 0 20px; font-size: 13px; line-height: 1.35; }
+  .debug-output {
+    width: 100%;
+    min-height: 150px;
+    box-sizing: border-box;
+    background: #111;
+    color: #d8d8d8;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    resize: vertical;
+  }
+  .small-note { color: #aaa; font-size: 11px; line-height: 1.35; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Velvet Noise Mixer</h1>
+<div class="version">Version 4.21 - Stable LFO startup</div>
+<div class="test-description">Test: LFO oscillator frequency and modulation depth are initialized before start, then depth fades in slowly to avoid startup flutter.</div>
+
+<div class="section">
+<h2>Master</h2>
+<div class="controls">
+<div class="control-group">
+<label for="master-volume">Volume</label>
+<input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.5">
+<div class="value-display" id="master-volume-value">0.50</div>
+</div>
+</div>
+<div class="button-row">
+<button onclick="startAll()">Start</button>
+<button onclick="stopAll()">Stop</button>
+</div>
+</div>
+
+<div class="section">
+<h2>Stereo Reverb</h2>
+<div class="controls">
+<div class="control-group">
+<label for="reverb-wet">Wet</label>
+<input type="range" id="reverb-wet" min="0" max="1" step="0.01" value="0.3">
+<div class="value-display" id="reverb-wet-value">0.30</div>
+</div>
+<div class="control-group">
+<label for="reverb-dry">Dry</label>
+<input type="range" id="reverb-dry" min="0" max="1" step="0.01" value="0.7">
+<div class="value-display" id="reverb-dry-value">0.70</div>
+</div>
+<div class="control-group">
+<label for="reverb-decay">Decay</label>
+<input type="range" id="reverb-decay" min="0.5" max="3" step="0.1" value="1.5">
+<div class="value-display" id="reverb-decay-value">1.5</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>API / Config Smoke Test</h2>
+<div class="button-row">
+<button onclick="refreshStateView()">Refresh State</button>
+<button onclick="exportConfigToView()">Export Config</button>
+<button onclick="loadConfigFromView()">Load Config</button>
+<button onclick="loadSoftSleepPreset()">Soft Sleep Bed</button>
+</div>
+<textarea id="api-state-output" class="debug-output" spellcheck="false"></textarea>
+<div class="small-note">This panel intentionally uses window.velvetNoiseApi, not direct UI internals. You can paste an exported config here and load it back.</div>
+</div>
+
+<div id="layers-container"></div>
+</div>
+
+<script>
+// ============================================
+// Constants - v4.14: API config tools, 16 kHz frequency UI, and 10 Hz output HP
+// ============================================
+const MIN_FREQ = 20;
+const MAX_FREQ = 16000;
+const OUTPUT_HIGHPASS_HZ = 10;
+const FREQ_RATIO = MAX_FREQ / MIN_FREQ;
+
+function sliderToFrequency(value) {
+    return MIN_FREQ * Math.pow(FREQ_RATIO, value);
+}
+
+function frequencyToSlider(freq) {
+    return Math.log(freq / MIN_FREQ) / Math.log(FREQ_RATIO);
+}
+
+function formatHz(freq) {
+    if (freq >= 1000) return (freq / 1000).toFixed(freq >= 3000 ? 1 : 2) + " kHz";
+    return Math.round(freq) + " Hz";
+}
+
+// One source of truth for layer controls. Add new layer parameters here first.
+const LAYER_PARAM_DEFS = [
+    { key: "frequency", label: "Frequency", min: 0, max: 1, step: 0.001, defaultValue: frequencyToSlider(1000), display: v => formatHz(sliderToFrequency(v)) },
+    { key: "bufferCount", label: "Buffer Count", min: 1, max: 10, step: 1, defaultValue: 2, display: v => String(Math.round(v)) },
+    { key: "volume", label: "Volume", min: 0, max: 1, step: 0.01, defaultValue: 0.5, display: v => v.toFixed(2) },
+    { key: "pan", label: "Pan", min: -1, max: 1, step: 0.1, defaultValue: -0.5, display: v => v.toFixed(2) },
+    { key: "density", label: "Density", min: 0.01, max: 0.5, step: 0.01, defaultValue: 0.3, display: v => v.toFixed(2) },
+    { key: "q", label: "Q", min: 0.1, max: 10, step: 0.1, defaultValue: 0.7, display: v => v.toFixed(2) },
+    { key: "lfoDepth", label: "LFO Depth", min: 0, max: 1, step: 0.01, defaultValue: 0.3, display: v => v.toFixed(2) },
+    { key: "lfoFrequency", label: "LFO Rate", min: 0.1, max: 4, step: 0.1, defaultValue: 1.0, display: v => v.toFixed(1) + " Hz" },
+    { key: "textureDrift", label: "Texture Drift", min: 0, max: 1, step: 0.01, defaultValue: 0.25, display: v => v.toFixed(2) }
+];
+
+function getLayerParamDef(key) {
+    return LAYER_PARAM_DEFS.find(def => def.key === key);
+}
+
+function clamp01(value) {
+    return Math.max(0, Math.min(1, value));
+}
+
+function getParamPercent(key, value) {
+    const def = getLayerParamDef(key);
+    if (!def) return 0;
+    const min = Number(def.min);
+    const max = Number(def.max);
+    if (max === min) return 0;
+    return clamp01((value - min) / (max - min)) * 100;
+}
+
+function getLfoDepthParamFromGain(depthGain, baseFrequency) {
+    const denom = Math.max(1e-6, baseFrequency * 0.35);
+    return clamp01(depthGain / denom);
+}
+
+function getDefaultLayerParams() {
+    const params = {};
+    LAYER_PARAM_DEFS.forEach(def => {
+        params[def.key] = def.defaultValue;
+    });
+    return params;
+}
+
+// ============================================
+// AudioEngine Class
+// ============================================
+class AudioEngine {
+    constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.outputHighpass = null;
+        this.reverbDryGain = null;
+        this.reverbWetGain = null;
+        this.leftConvolver = null;
+        this.rightConvolver = null;
+        this.channelMerger = null;
+        this.voices = [];
+        this.layers = this.voices; // Backward-compatible alias used by the demo UI.
+        this.initialized = false;
+        this.reverbWetTarget = 0.3;
+        this.reverbDryTarget = 0.7;
+    }
+
+    async init() {
+        if (this.initialized) return;
+
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.5;
+
+        this.outputHighpass = this.ctx.createBiquadFilter();
+        this.outputHighpass.type = "highpass";
+        this.outputHighpass.frequency.value = OUTPUT_HIGHPASS_HZ;
+        this.outputHighpass.Q.value = 0.707;
+
+        this.reverbDryGain = this.ctx.createGain();
+        this.reverbDryGain.gain.value = this.reverbDryTarget;
+        this.reverbDryGain.connect(this.ctx.destination);
+
+        this.reverbWetGain = this.ctx.createGain();
+        this.reverbWetGain.gain.value = this.reverbWetTarget;
+        this.reverbWetGain.connect(this.ctx.destination);
+
+        this.channelMerger = this.ctx.createChannelMerger(2);
+        this.channelMerger.connect(this.reverbWetGain);
+
+        this.leftConvolver = this.ctx.createConvolver();
+        this.rightConvolver = this.ctx.createConvolver();
+        this.leftConvolver.connect(this.channelMerger, 0, 0);
+        this.rightConvolver.connect(this.channelMerger, 0, 1);
+
+        // One 10 Hz output high-pass removes DC and subsonic build-up while keeping
+        // the audible low-frequency slider range starting at 20 Hz.
+        this.masterGain.connect(this.outputHighpass);
+        this.outputHighpass.connect(this.reverbDryGain);
+        this.outputHighpass.connect(this.leftConvolver);
+        this.outputHighpass.connect(this.rightConvolver);
+
+        await this.updateStereoImpulseResponse(1.5);
+        this.initialized = true;
+    }
+
+    async resume() {
+        if (this.ctx && this.ctx.state === "suspended") await this.ctx.resume();
+    }
+
+    async updateStereoImpulseResponse(decay) {
+        const sampleRate = this.ctx.sampleRate;
+        const duration = 4;
+        const length = sampleRate * duration;
+
+        const createWarmTail = (sideOffset = 0) => {
+            const buffer = this.ctx.createBuffer(1, length, sampleRate);
+            const data = buffer.getChannelData(0);
+            let lowState = 0;
+            let peak = 0;
+
+            for (let i = 0; i < length; i++) {
+                const t = i / sampleRate;
+                const white = Math.random() * 2 - 1;
+                const decorrelated = Math.random() * 2 - 1;
+
+                // A simple one-pole low-pass creates a warm diffuse tail.
+                // v4.15 keeps warmth, but reduces low-frequency build-up in the reverb.
+                const lowpassAmount = 0.004 + sideOffset;
+                lowState += lowpassAmount * (white - lowState);
+
+                const highTail = decorrelated * Math.exp(-t / Math.max(0.05, decay * 0.35)) * 0.22;
+                const lowTail = lowState * Math.exp(-t / Math.max(0.05, decay * 0.85)) * 0.55;
+                const earlyTap = white * Math.exp(-t / 0.025) * 0.06;
+
+                data[i] = highTail + lowTail + earlyTap;
+                peak = Math.max(peak, Math.abs(data[i]));
+            }
+
+            // Keep the generated impulse response at a controlled level.
+            const normalizer = peak > 0 ? 0.75 / peak : 1;
+            for (let i = 0; i < length; i++) data[i] *= normalizer;
+            return buffer;
+        };
+
+        this.leftConvolver.buffer = createWarmTail(0.0000);
+        this.rightConvolver.buffer = createWarmTail(0.0015);
+    }
+
+
+    fadeInWetReverb(seconds = 2.8) {
+        if (!this.ctx || !this.reverbWetGain) return;
+
+        const now = this.ctx.currentTime;
+        const target = this.reverbWetTarget;
+
+        // The convolver has no previous tail at startup. Fade in only the wet path
+        // slowly so the dry bed starts cleanly while the reverb field fills.
+        this.reverbWetGain.gain.cancelScheduledValues(now);
+        this.reverbWetGain.gain.setValueAtTime(0.0, now);
+        this.reverbWetGain.gain.linearRampToValueAtTime(target, now + seconds);
+    }
+
+    addVoice(voice) {
+        this.voices.push(voice);
+    }
+
+    removeVoiceRef(voice) {
+        this.voices = this.voices.filter(item => item !== voice);
+        this.layers = this.voices;
+    }
+
+    addLayer(layer) {
+        this.addVoice(layer);
+    }
+
+    getContext() {
+        return this.ctx;
+    }
+}
+
+// ============================================
+// VelvetVoice Class
+// ============================================
+class VelvetVoice {
+    constructor(id, audioEngine, config = {}) {
+        this.id = id;
+        this.audioEngine = audioEngine;
+
+        // Copyable layer state. This object must stay free of Web Audio nodes.
+        this.params = { ...getDefaultLayerParams(), ...(config.params || config) };
+        this.isMuted = Boolean(config.isMuted);
+        this.customName = config.customName || "";
+
+        // Runtime-only audio nodes. These are rebuilt when playback starts and are never copied.
+        this.nodes = {
+            bufferSources: [],
+            lowpassFilter: null,
+            eqCompGain: null,
+            panner: null,
+            continuousGain: null,
+            pulseGain: null,
+            gain: null,
+            lfo: null,
+            lfoGain: null
+        };
+
+        this.isPlaying = false;
+        this.noiseBuffers = [];
+        this.element = null;
+        this.baseFrequency = sliderToFrequency(this.params.frequency);
+        this.textureDriftTimer = null;
+        this.bufferRebuildTimer = null;
+        this.currentDriftLfoFrequency = this.params.lfoFrequency;
+        this.currentDriftLfoDepth = this.params.lfoDepth;
+    }
+
+    static fromConfig(id, audioEngine, config) {
+        return new VelvetVoice(id, audioEngine, config);
+    }
+
+    toConfig() {
+        return {
+            params: { ...this.params },
+            isMuted: this.isMuted,
+            customName: this.customName
+        };
+    }
+
+    get displayName() {
+        const freqName = formatHz(this.baseFrequency);
+        return this.customName ? `${this.customName} - ${freqName}` : `Layer ${this.id} - ${freqName}`;
+    }
+
+    getDensityCompensation() {
+        const referenceDensity = 0.30;
+        const safeDensity = Math.max(this.params.density, 0.01);
+        // Partial density compensation: sparse impulses get a moderate gain lift, but not full RMS matching.
+        return Math.pow(referenceDensity / safeDensity, 0.35);
+    }
+
+    fillNoiseBuffer(buffer) {
+        const data = buffer.getChannelData(0);
+        const density = Math.max(this.params.density, 0.01);
+        const bufferCount = Math.max(1, Math.round(this.params.bufferCount || 1));
+        // Multiple independent velvet buffers are summed. Scale each buffer by
+        // 1 / sqrt(bufferCount) to keep total energy roughly stable.
+        const perBufferGain = 1 / Math.sqrt(bufferCount);
+        const impulseAmplitude = 0.2 * this.getDensityCompensation() * perBufferGain;
+
+        for (let i = 0; i < data.length; i++) {
+            data[i] = Math.random() < density ? (Math.random() < 0.5 ? impulseAmplitude : -impulseAmplitude) : 0;
+        }
+    }
+
+    createNoiseBuffer(durationSeconds = 2) {
+        const ctx = this.audioEngine.getContext();
+        if (!ctx) return null;
+        const safeDuration = Math.max(0.25, durationSeconds);
+        const bufferSize = Math.max(1, Math.round(ctx.sampleRate * safeDuration));
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        this.fillNoiseBuffer(buffer);
+        return buffer;
+    }
+
+    updateNoiseBuffer() {
+        this.noiseBuffers.forEach(buffer => this.fillNoiseBuffer(buffer));
+    }
+
+    updateEQCompensation(frequency, gainNode) {
+        const referenceFreq = 1000;
+        const octavesFromRef = Math.log2(frequency / referenceFreq);
+        // EQ compensation only: +6 dB per octave below 1 kHz, -6 dB per octave above 1 kHz.
+        const eqGainInDB = octavesFromRef * -6;
+
+        gainNode.gain.value = Math.pow(10, eqGainInDB / 20);
+        return { eqGain: eqGainInDB, totalGain: eqGainInDB };
+    }
+
+    getBaseLfoDepthGain() {
+        return this.params.lfoDepth * this.baseFrequency * 0.35;
+    }
+
+    applyBaseLfoTargets(timeConstant = 0.05) {
+        const ctx = this.audioEngine.getContext();
+        const n = this.nodes;
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+        this.currentDriftLfoFrequency = this.params.lfoFrequency;
+        this.currentDriftLfoDepth = this.params.lfoDepth;
+        if (n.lfo) n.lfo.frequency.setTargetAtTime(this.params.lfoFrequency, now, timeConstant);
+        if (n.lfoGain) n.lfoGain.gain.setTargetAtTime(this.getBaseLfoDepthGain(), now, timeConstant);
+        this.updateDriftIndicators(false);
+    }
+
+    stopTextureDrift() {
+        if (this.textureDriftTimer) {
+            window.clearTimeout(this.textureDriftTimer);
+            this.textureDriftTimer = null;
+        }
+    }
+
+    scheduleTextureDrift() {
+        this.stopTextureDrift();
+
+        const amount = Math.max(0, Math.min(1, this.params.textureDrift || 0));
+        if (!this.isPlaying || amount <= 0) {
+            this.applyBaseLfoTargets(0.2);
+            return;
+        }
+
+        const runDriftStep = () => {
+            const ctx = this.audioEngine.getContext();
+            const n = this.nodes;
+            const driftAmount = Math.max(0, Math.min(1, this.params.textureDrift || 0));
+
+            if (!this.isPlaying || !ctx || !n.lfo || !n.lfoGain || driftAmount <= 0) {
+                this.stopTextureDrift();
+                this.applyBaseLfoTargets(0.2);
+                return;
+            }
+
+            const now = ctx.currentTime;
+            const baseRate = Math.max(0.1, this.params.lfoFrequency);
+            const signedRate = Math.random() * 2 - 1;
+            const signedDepth = Math.random() * 2 - 1;
+
+            // Wider audible drift. Rate uses an exponential ratio so slow base rates
+            // can move clearly without becoming negative, while fast rates stay controlled.
+            const rateOctaveRange = 1.25 * driftAmount;
+            const targetRate = Math.max(0.05, Math.min(8.0, baseRate * Math.pow(2, signedRate * rateOctaveRange)));
+
+            // Depth drift may overshoot the base slider. The ghost marker clamps visually,
+            // but the audio target is allowed to become more clearly audible.
+            const targetDepth = Math.max(0, this.getBaseLfoDepthGain() * (1 + signedDepth * 0.85 * driftAmount));
+            this.currentDriftLfoFrequency = targetRate;
+            this.currentDriftLfoDepth = getLfoDepthParamFromGain(targetDepth, this.baseFrequency);
+            this.updateDriftIndicators(true);
+
+            // Smooth the actual AudioParam motion. The time constant follows the target
+            // period: slow LFO states live and move longer, fast states can change sooner.
+            const targetPeriodSec = 1 / Math.max(0.05, targetRate);
+            const smoothingSec = Math.max(0.20, Math.min(2.50, targetPeriodSec * 0.45));
+            n.lfo.frequency.setTargetAtTime(targetRate, now, smoothingSec);
+            n.lfoGain.gain.setTargetAtTime(targetDepth, now, smoothingSec);
+
+            const baseHoldMs = Math.max(300, Math.min(4500, targetPeriodSec * 1200));
+            const jitterMs = (Math.random() * 2 - 1) * baseHoldMs * 0.25 * driftAmount;
+            this.textureDriftTimer = window.setTimeout(runDriftStep, Math.max(220, baseHoldMs + jitterMs));
+        };
+
+        this.textureDriftTimer = window.setTimeout(runDriftStep, 300 + Math.random() * 700);
+    }
+
+    scheduleBufferGraphRebuild() {
+        if (!this.isPlaying) return;
+        if (this.bufferRebuildTimer) window.clearTimeout(this.bufferRebuildTimer);
+
+        // Range inputs can fire several times while dragging. Debounce the expensive
+        // graph rebuild so Buffer Count does not create repeated stop/start bursts.
+        this.bufferRebuildTimer = window.setTimeout(async () => {
+            this.bufferRebuildTimer = null;
+            if (!this.isPlaying) return;
+            this.stop();
+            await new Promise(resolve => window.setTimeout(resolve, 170));
+            await this.start();
+        }, 120);
+    }
+
+    buildAudioGraph() {
+        const ctx = this.audioEngine.getContext();
+        if (!ctx) return;
+
+        this.baseFrequency = sliderToFrequency(this.params.frequency);
+        const bufferCount = Math.max(1, Math.round(this.params.bufferCount || 1));
+
+        // Avoid a shared 2-second loop period across all summed buffers. Equal loop
+        // lengths can create an audible startup flutter or common loop-boundary rhythm.
+        this.noiseBuffers = Array.from({ length: bufferCount }, (_, index) => {
+            const durationJitter = index === 0 ? 0 : (Math.random() * 0.80 - 0.20);
+            return this.createNoiseBuffer(2.0 + durationJitter);
+        });
+
+        const n = this.nodes;
+        n.bufferSources = this.noiseBuffers.map(buffer => {
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+            return source;
+        });
+
+        n.lowpassFilter = ctx.createBiquadFilter();
+        n.lowpassFilter.type = "lowpass";
+
+        n.eqCompGain = ctx.createGain();
+        n.panner = ctx.createStereoPanner();
+        n.continuousGain = ctx.createGain();
+        n.pulseGain = ctx.createGain();
+        n.pulseGain.gain.value = 0.0;
+        n.gain = ctx.createGain();
+
+        n.lfo = ctx.createOscillator();
+        n.lfo.type = "sine";
+        // Avoid the oscillator default 440 Hz startup sweep. Set the real
+        // LFO rate before start(), then fade modulation depth in separately.
+        n.lfo.frequency.value = this.params.lfoFrequency;
+        n.lfoGain = ctx.createGain();
+        n.lfoGain.gain.value = 0;
+
+        n.lfo.connect(n.lfoGain);
+        n.lfoGain.connect(n.lowpassFilter.frequency);
+
+        // All velvet buffers feed the same voice filter. Each source starts from
+        // a different random offset to reduce short-loop repetition.
+        n.bufferSources.forEach(source => source.connect(n.lowpassFilter));
+        n.lowpassFilter.connect(n.eqCompGain);
+        n.eqCompGain.connect(n.panner);
+        n.panner.connect(n.continuousGain);
+        n.continuousGain.connect(n.gain);
+        n.panner.connect(n.pulseGain);
+        n.pulseGain.connect(n.gain);
+        n.gain.connect(this.audioEngine.masterGain);
+
+        Object.keys(this.params).forEach(param => {
+            // LFO params are initialized explicitly before oscillator start.
+            // Calling setTargetAtTime() here would ramp from Web Audio defaults
+            // and can create an audible decelerating flutter at startup.
+            if (param === "lfoFrequency" || param === "lfoDepth" || param === "textureDrift") return;
+            this.applyParamToAudio(param, this.params[param]);
+        });
+        this.currentDriftLfoFrequency = this.params.lfoFrequency;
+        this.currentDriftLfoDepth = this.params.lfoDepth;
+        this.updateDriftIndicators(false);
+        this.applyMuteToAudio();
+
+        // Start the continuous bed silently. start() fades it in after the sources
+        // begin, which masks buffer-onset flutter without affecting the saved config.
+        if (n.continuousGain) n.continuousGain.gain.value = 0;
+
+        n.lfo.start(0);
+        this.updateDisplay();
+    }
+
+    applyParamToAudio(param, value) {
+        const n = this.nodes;
+
+        switch (param) {
+            case "density":
+                this.updateNoiseBuffer();
+                break;
+            case "bufferCount":
+                // Buffer count changes the graph topology, so rebuild only when playing.
+                this.params.bufferCount = Math.max(1, Math.round(value));
+                this.scheduleBufferGraphRebuild();
+                break;
+            case "frequency":
+                this.baseFrequency = sliderToFrequency(value);
+                if (n.lowpassFilter) n.lowpassFilter.frequency.value = this.baseFrequency;
+                if (n.eqCompGain) this.updateEQCompensation(this.baseFrequency, n.eqCompGain);
+                this.applyBaseLfoTargets(0.05);
+                break;
+            case "q":
+                if (n.lowpassFilter) n.lowpassFilter.Q.value = value;
+                break;
+            case "pan":
+                if (n.panner) n.panner.pan.value = value;
+                break;
+            case "volume":
+                this.applyMuteToAudio();
+                break;
+            case "lfoDepth":
+                // LFO depth controls modulation amount: 0 = no modulation, 1 = strong modulation.
+                this.applyBaseLfoTargets(0.05);
+                break;
+            case "lfoFrequency":
+                this.applyBaseLfoTargets(0.05);
+                break;
+            case "textureDrift":
+                this.scheduleTextureDrift();
+                break;
+        }
+    }
+
+    applyMuteToAudio() {
+        const n = this.nodes;
+        // Mute only silences the continuous bed. Pulse gain remains available,
+        // so muted layers can still be used as one-shot roughness events.
+        if (n.continuousGain) n.continuousGain.gain.value = this.isMuted ? 0 : 1;
+        if (n.gain) n.gain.gain.value = this.params.volume;
+    }
+
+    async start() {
+        if (this.isPlaying) return;
+        await this.audioEngine.init();
+        await this.audioEngine.resume();
+        this.buildAudioGraph();
+        const ctx = this.audioEngine.getContext();
+        const now = ctx.currentTime;
+        const startAt = now + 0.050;
+
+        this.nodes.bufferSources.forEach(source => {
+            const duration = source.buffer ? source.buffer.duration : 0;
+            const offset = duration > 0 ? Math.random() * duration : 0;
+            // Start all summed buffers at the same audio-clock time, but from
+            // random buffer offsets. Staggered source.start() times can create
+            // an audible startup flutter when many buffers fade in one by one.
+            source.start(startAt, offset);
+        });
+
+        const targetContinuousGain = this.isMuted ? 0 : 1;
+        if (this.nodes.continuousGain) {
+            this.nodes.continuousGain.gain.cancelScheduledValues(now);
+            this.nodes.continuousGain.gain.setValueAtTime(0, now);
+            this.nodes.continuousGain.gain.setValueAtTime(0, startAt);
+            this.nodes.continuousGain.gain.linearRampToValueAtTime(targetContinuousGain, startAt + 1.40);
+        }
+
+        if (this.nodes.lfoGain) {
+            const targetLfoDepth = this.getBaseLfoDepthGain();
+            this.nodes.lfoGain.gain.cancelScheduledValues(now);
+            this.nodes.lfoGain.gain.setValueAtTime(0, now);
+            this.nodes.lfoGain.gain.setValueAtTime(0, startAt + 0.15);
+            // Fade in LFO influence slowly. The oscillator itself is already
+            // running at the correct low rate, so no high-rate startup sweep occurs.
+            this.nodes.lfoGain.gain.linearRampToValueAtTime(targetLfoDepth, startAt + 2.20);
+        }
+
+        this.isPlaying = true;
+        this.textureDriftTimer = window.setTimeout(() => this.scheduleTextureDrift(), 2200);
+    }
+
+    stop() {
+        if (!this.isPlaying) return;
+        this.stopTextureDrift();
+        if (this.bufferRebuildTimer) {
+            window.clearTimeout(this.bufferRebuildTimer);
+            this.bufferRebuildTimer = null;
+        }
+
+        const ctx = this.audioEngine.getContext();
+        const n = this.nodes;
+        const fadeTime = 0.080;
+        const cleanupDelayMs = 120;
+
+        // Fade the voice before stopping nodes. This prevents stop-clicks and still lets
+        // the shared convolver ring naturally from the already-fed signal.
+        if (ctx && n.gain) {
+            const now = ctx.currentTime;
+            const currentGain = n.gain.gain.value;
+            n.gain.gain.cancelScheduledValues(now);
+            n.gain.gain.setValueAtTime(currentGain, now);
+            n.gain.gain.linearRampToValueAtTime(0.0001, now + fadeTime);
+        }
+
+        const nodesToClean = { ...this.nodes };
+        window.setTimeout(() => {
+            (nodesToClean.bufferSources || []).forEach(source => {
+                try { if (source) source.stop(0); } catch (e) {}
+            });
+            try { if (nodesToClean.lfo) nodesToClean.lfo.stop(0); } catch (e) {}
+
+            Object.values(nodesToClean).forEach(node => {
+                try { if (node) node.disconnect(); } catch (e) {}
+            });
+        }, cleanupDelayMs);
+
+        this.nodes = {
+            bufferSources: [],
+            lowpassFilter: null,
+            eqCompGain: null,
+            panner: null,
+            continuousGain: null,
+            pulseGain: null,
+            gain: null,
+            lfo: null,
+            lfoGain: null
+        };
+        this.noiseBuffers = [];
+        this.isPlaying = false;
+    }
+
+    triggerEnvelope(options = {}) {
+        const ctx = this.audioEngine.getContext();
+        const pulseGain = this.nodes.pulseGain;
+        if (!ctx || !pulseGain) return;
+
+        const attack = options.attack ?? 0.005;
+        const hold = options.hold ?? 0.050;
+        const release = options.release ?? 0.300;
+        const base = options.base ?? 0.0;
+        const peak = options.peak ?? 2.0;
+        const now = ctx.currentTime;
+
+        // Schedule the pulse shape on the Web Audio timeline.
+        // JS only triggers the event; the audio thread handles the envelope ramps.
+        pulseGain.gain.cancelScheduledValues(now);
+        pulseGain.gain.setValueAtTime(base, now);
+        pulseGain.gain.linearRampToValueAtTime(peak, now + attack);
+        pulseGain.gain.setValueAtTime(peak, now + attack + hold);
+        pulseGain.gain.linearRampToValueAtTime(0.0, now + attack + hold + release);
+    }
+
+    setMuted(isMuted) {
+        const wasMuted = this.isMuted;
+        this.isMuted = isMuted;
+
+        // If a copied voice was created while the engine was already initialized,
+        // unmute should also create its runtime audio graph. Otherwise the UI state
+        // changes but the voice remains silent until a pulse/start action wakes it.
+        if (wasMuted && !isMuted && !this.isPlaying && this.audioEngine.initialized) {
+            this.start();
+        } else {
+            this.applyMuteToAudio();
+        }
+
+        this.updateDisplay();
+    }
+
+    toggleMute() {
+        this.setMuted(!this.isMuted);
+    }
+
+    updateParam(param, value) {
+        this.params[param] = value;
+        this.applyParamToAudio(param, value);
+        this.updateDisplay();
+    }
+
+    updateDriftIndicators(showDrift = true) {
+        if (!this.element) return;
+
+        const updateMarker = (key, value) => {
+            const wrap = this.element.querySelector(`[data-drift-wrap="${key}"]`);
+            const marker = this.element.querySelector(`[data-drift-marker="${key}"]`);
+            if (!wrap || !marker) return;
+
+            // Show the current drift target as a ghost marker behind the slider thumb.
+            marker.style.left = `${getParamPercent(key, value)}%`;
+            wrap.classList.toggle("has-drift", showDrift && Math.abs(value - this.params[key]) > 0.0001);
+        };
+
+        updateMarker("lfoFrequency", this.currentDriftLfoFrequency);
+        updateMarker("lfoDepth", this.currentDriftLfoDepth);
+    }
+
+    updateDisplay() {
+        if (!this.element) return;
+        const title = this.element.querySelector(".layer-title");
+        if (title) title.textContent = this.displayName;
+
+        const muteButton = this.element.querySelector(".mute-button");
+        if (muteButton) {
+            muteButton.textContent = this.isMuted ? "Unmute" : "Mute";
+            muteButton.classList.toggle("muted", this.isMuted);
+        }
+
+        const eq = this.computeCompensationDisplayValues();
+        this.element.querySelector(".eq-comp-value").textContent = eq.eqGain + " dB";
+        this.element.querySelector(".q-display-value").textContent = this.params.q.toFixed(2);
+        this.element.querySelector(".bandwidth-value").textContent = Math.round(this.baseFrequency / this.params.q) + " Hz";
+        this.updateDriftIndicators(this.params.textureDrift > 0 && this.isPlaying);
+    }
+
+    computeCompensationDisplayValues() {
+        const freq = this.baseFrequency;
+        const referenceFreq = 1000;
+        const octavesFromRef = Math.log2(freq / referenceFreq);
+        const eqGainInDB = octavesFromRef * -6;
+
+        return {
+            eqGain: eqGainInDB.toFixed(1)
+        };
+    }
+}
+
+// Backward-compatible name for older demo code. New code should use VelvetVoice.
+const Layer = VelvetVoice;
+
+
+// ============================================
+// VelvetEngine - UI-independent control surface
+// ============================================
+class VelvetEngine {
+    constructor(audioEngine) {
+        this.audioEngine = audioEngine;
+        this.voices = [];
+        this.nextId = 1;
+        this.onVoiceAdded = null;
+        this.onVoiceRemoved = null;
+        this.onVoiceUpdated = null;
+    }
+
+    addVoice(config = {}) {
+        const voice = VelvetVoice.fromConfig(this.nextId++, this.audioEngine, config);
+        this.voices.push(voice);
+        this.audioEngine.addVoice(voice);
+        if (this.onVoiceAdded) this.onVoiceAdded(voice);
+        return voice.id;
+    }
+
+    removeVoice(id) {
+        const index = this.voices.findIndex(voice => voice.id === id);
+        if (index < 0) return false;
+
+        const [voice] = this.voices.splice(index, 1);
+        voice.stop();
+        this.audioEngine.removeVoiceRef(voice);
+        if (this.onVoiceRemoved) this.onVoiceRemoved(voice);
+        return true;
+    }
+
+    cloneVoice(id) {
+        const source = this.voices.find(voice => voice.id === id);
+        if (!source) return null;
+
+        const config = source.toConfig();
+        config.isMuted = true; // Safer default: copied voices do not jump in level immediately.
+        config.customName = config.customName || `Copy of Voice ${source.id}`;
+        return this.addVoice(config);
+    }
+
+    updateVoiceParam(id, param, value) {
+        const voice = this.voices.find(item => item.id === id);
+        if (!voice) return false;
+
+        if (param === "isMuted") {
+            voice.setMuted(Boolean(value));
+            if (this.onVoiceUpdated) this.onVoiceUpdated(voice, param, voice.isMuted);
+            return true;
+        }
+
+        if (!(param in voice.params)) return false;
+
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) return false;
+
+        voice.updateParam(param, numericValue);
+        if (this.onVoiceUpdated) this.onVoiceUpdated(voice, param, numericValue);
+        return true;
+    }
+
+    setMasterVolume(value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) return false;
+        if (this.audioEngine.masterGain) this.audioEngine.masterGain.gain.value = numericValue;
+        return true;
+    }
+
+    setReverbMix(wet) {
+        const wetValue = Math.max(0, Math.min(1, Number(wet)));
+        if (!Number.isFinite(wetValue)) return false;
+        const dryValue = 1 - wetValue;
+        this.audioEngine.reverbWetTarget = wetValue;
+        this.audioEngine.reverbDryTarget = dryValue;
+        if (this.audioEngine.reverbWetGain) this.audioEngine.reverbWetGain.gain.value = wetValue;
+        if (this.audioEngine.reverbDryGain) this.audioEngine.reverbDryGain.gain.value = dryValue;
+        return true;
+    }
+
+    async setReverbDecay(decay) {
+        const numericValue = Number(decay);
+        if (!Number.isFinite(numericValue)) return false;
+        if (this.audioEngine.initialized) await this.audioEngine.updateStereoImpulseResponse(numericValue);
+        return true;
+    }
+
+    exportConfig() {
+        return {
+            version: "4.19",
+            master: {
+                volume: this.audioEngine.masterGain ? this.audioEngine.masterGain.gain.value : 0.5,
+                outputHighpassHz: OUTPUT_HIGHPASS_HZ
+            },
+            reverb: {
+                wet: this.audioEngine.reverbWetTarget,
+                dry: this.audioEngine.reverbDryTarget
+            },
+            voices: this.voices.map(voice => voice.toConfig())
+        };
+    }
+
+    loadConfig(config = {}) {
+        if (!config || !Array.isArray(config.voices)) return false;
+
+        [...this.voices].forEach(voice => this.removeVoice(voice.id));
+
+        if (config.master && typeof config.master.volume === "number") {
+            this.setMasterVolume(config.master.volume);
+        }
+        if (config.reverb && typeof config.reverb.wet === "number") {
+            this.setReverbMix(config.reverb.wet);
+        }
+
+        config.voices.forEach(voiceConfig => this.addVoice(voiceConfig));
+        return true;
+    }
+
+    async triggerVoice(id, options = {}) {
+        const voice = this.voices.find(item => item.id === id);
+        if (!voice) return false;
+
+        if (!voice.isPlaying) await voice.start();
+        voice.triggerEnvelope(options);
+        return true;
+    }
+
+    async start() {
+        const wasRunning = this.voices.some(voice => voice.isPlaying);
+        await this.audioEngine.init();
+        await this.audioEngine.resume();
+        if (!wasRunning) this.audioEngine.fadeInWetReverb(2.8);
+        await Promise.all(this.voices.map(voice => voice.start()));
+        return true;
+    }
+
+    stop() {
+        this.voices.forEach(voice => voice.stop());
+        return true;
+    }
+
+    getState() {
+        return {
+            initialized: this.audioEngine.initialized,
+            isRunning: this.voices.some(voice => voice.isPlaying),
+            master: {
+                volume: this.audioEngine.masterGain ? this.audioEngine.masterGain.gain.value : 0.5,
+                outputHighpassHz: OUTPUT_HIGHPASS_HZ
+            },
+            frequencyUi: {
+                minHz: MIN_FREQ,
+                maxHz: MAX_FREQ
+            },
+            reverb: {
+                wet: this.audioEngine.reverbWetTarget,
+                dry: this.audioEngine.reverbDryTarget
+            },
+            voices: this.voices.map(voice => ({
+                id: voice.id,
+                isPlaying: voice.isPlaying,
+                ...voice.toConfig()
+            }))
+        };
+    }
+}
+
+// ============================================
+// LayerManager
+
+// ============================================
+class LayerManager {
+    constructor(velvetEngine, containerId) {
+        this.velvetEngine = velvetEngine;
+        this.container = document.getElementById(containerId);
+        this.layers = velvetEngine.voices;
+
+        this.velvetEngine.onVoiceAdded = voice => createLayerUI(voice, this.container);
+        this.velvetEngine.onVoiceRemoved = voice => {
+            if (voice.element) voice.element.remove();
+        };
+    }
+
+    addLayer(config = {}) {
+        const id = this.velvetEngine.addVoice(config);
+        return this.layers.find(layer => layer.id === id) || null;
+    }
+
+    cloneLayer(id) {
+        const newId = this.velvetEngine.cloneVoice(id);
+        return this.layers.find(layer => layer.id === newId) || null;
+    }
+
+    removeLayer(id) {
+        this.velvetEngine.removeVoice(id);
+    }
+
+    async startAll() {
+        await this.velvetEngine.start();
+    }
+
+    stopAll() {
+        this.velvetEngine.stop();
+    }
+}
+// ============================================
+// UI generation
+// ============================================
+function createLayerUI(layer, container) {
+    const card = document.createElement("div");
+    card.className = "layer-card";
+    card.id = `layer-${layer.id}`;
+    layer.element = card;
+
+    const controlsHtml = LAYER_PARAM_DEFS.map(def => {
+        const driftMarkerHtml = (def.key === "lfoDepth" || def.key === "lfoFrequency")
+            ? `<div class="slider-visual-wrap" data-drift-wrap="${def.key}"><span class="drift-marker" data-drift-marker="${def.key}"></span><input type="range" id="layer${layer.id}-${def.key}" min="${def.min}" max="${def.max}" step="${def.step}" value="${layer.params[def.key]}"></div>`
+            : `<input type="range" id="layer${layer.id}-${def.key}" min="${def.min}" max="${def.max}" step="${def.step}" value="${layer.params[def.key]}">`;
+
+        return `
+        <div class="control-group">
+            <label for="layer${layer.id}-${def.key}">${def.label}</label>
+            ${driftMarkerHtml}
+            <div class="value-display" id="layer${layer.id}-${def.key}-value">${def.display(layer.params[def.key])}</div>
+        </div>
+    `;
+    }).join("");
+
+    card.innerHTML = `
+        <div class="layer-header">
+            <h2 class="layer-title">${layer.displayName}</h2>
+            <div class="layer-buttons">
+                <button class="mute-button">Mute</button>
+                <button class="pulse-button" title="Trigger a pulse; also works when the layer is muted">Pulse</button>
+                <button class="copy-button">Copy</button>
+                <button class="remove-button">Remove</button>
+            </div>
+        </div>
+        <div class="layer-subtitle">Config-based voice/layer. Buffer Count sums independent desynchronized velvet buffers; Texture Drift uses wider, rate-dependent LFO motion shown by ghost markers.</div>
+        <div class="controls">${controlsHtml}</div>
+        <div class="compensation-info">
+            <div class="compensation-title">Compensation Values</div>
+            <div class="compensation-row"><span class="compensation-label">EQ Comp:</span><span class="compensation-value eq-comp-value">0.0 dB</span></div>
+            <div class="compensation-row"><span class="compensation-label">Q:</span><span class="compensation-value q-display-value">0.70</span></div>
+            <div class="compensation-row"><span class="compensation-label">Bandwidth:</span><span class="compensation-value bandwidth-value">0 Hz</span></div>
+        </div>
+    `;
+
+    container.appendChild(card);
+
+    LAYER_PARAM_DEFS.forEach(def => {
+        const slider = document.getElementById(`layer${layer.id}-${def.key}`);
+        const display = document.getElementById(`layer${layer.id}-${def.key}-value`);
+        slider.addEventListener("input", () => {
+            const value = parseFloat(slider.value);
+            window.velvetNoiseApi.updateVoiceParam(layer.id, def.key, value);
+            display.textContent = def.display(value);
+            refreshStateView();
+        });
+    });
+
+    card.querySelector(".mute-button").addEventListener("click", () => {
+        window.velvetNoiseApi.updateVoiceParam(layer.id, "isMuted", !layer.isMuted);
+        refreshStateView();
+    });
+    card.querySelector(".pulse-button").addEventListener("click", async () => {
+        await window.velvetNoiseApi.triggerVoice(layer.id);
+        refreshStateView();
+    });
+    card.querySelector(".copy-button").addEventListener("click", () => {
+        window.velvetNoiseApi.cloneVoice(layer.id);
+        refreshStateView();
+    });
+    card.querySelector(".remove-button").addEventListener("click", () => {
+        window.velvetNoiseApi.removeVoice(layer.id);
+        refreshStateView();
+    });
+
+    layer.updateDisplay();
+}
+
+// ============================================
+// Initialize Application
+// ============================================
+const audioEngine = new AudioEngine();
+const velvetEngine = new VelvetEngine(audioEngine);
+
+window.velvetNoiseApi = {
+    start: () => velvetEngine.start(),
+    stop: () => velvetEngine.stop(),
+    addVoice: config => velvetEngine.addVoice(config),
+    removeVoice: id => velvetEngine.removeVoice(id),
+    cloneVoice: id => velvetEngine.cloneVoice(id),
+    updateVoiceParam: (id, param, value) => velvetEngine.updateVoiceParam(id, param, value),
+    triggerVoice: (id, options) => velvetEngine.triggerVoice(id, options),
+    getState: () => velvetEngine.getState(),
+    exportConfig: () => velvetEngine.exportConfig(),
+    loadConfig: config => velvetEngine.loadConfig(config),
+    setMasterVolume: value => velvetEngine.setMasterVolume(value),
+    setReverbMix: wet => velvetEngine.setReverbMix(wet),
+    setReverbDecay: decay => velvetEngine.setReverbDecay(decay)
+};
+
+let layerManager;
+
+async function startAll() {
+    await window.velvetNoiseApi.start();
+    refreshStateView();
+}
+
+function stopAll() {
+    window.velvetNoiseApi.stop();
+    refreshStateView();
+}
+
+function setupGlobalUI() {
+    const wetSlider = document.getElementById("reverb-wet");
+    const drySlider = document.getElementById("reverb-dry");
+    const wetDisplay = document.getElementById("reverb-wet-value");
+    const dryDisplay = document.getElementById("reverb-dry-value");
+
+    function updateReverbMix() {
+        const wetValue = parseFloat(wetSlider.value);
+        const dryValue = 1 - wetValue;
+        window.velvetNoiseApi.setReverbMix(wetValue);
+        drySlider.value = dryValue;
+        wetDisplay.textContent = wetValue.toFixed(2);
+        dryDisplay.textContent = dryValue.toFixed(2);
+        refreshStateView();
+    }
+
+    wetSlider.addEventListener("input", updateReverbMix);
+    drySlider.addEventListener("input", function() {
+        wetSlider.value = 1 - parseFloat(this.value);
+        updateReverbMix();
+    });
+
+    const decaySlider = document.getElementById("reverb-decay");
+    const decayDisplay = document.getElementById("reverb-decay-value");
+    decaySlider.addEventListener("input", async function() {
+        const decay = parseFloat(this.value);
+        decayDisplay.textContent = decay.toFixed(1);
+        await window.velvetNoiseApi.setReverbDecay(decay);
+        refreshStateView();
+    });
+
+    const masterSlider = document.getElementById("master-volume");
+    const masterDisplay = document.getElementById("master-volume-value");
+    masterSlider.addEventListener("input", function() {
+        const value = parseFloat(this.value);
+        window.velvetNoiseApi.setMasterVolume(value);
+        masterDisplay.textContent = value.toFixed(2);
+        refreshStateView();
+    });
+}
+
+
+function getSoftSleepPresetConfig() {
+    return {
+        version: "4.14-preset-soft-sleep-bed",
+        master: { volume: 0.42 },
+        reverb: { wet: 0.36, dry: 0.64 },
+        voices: [
+            {
+                customName: "Low velvet bed",
+                isMuted: false,
+                params: {
+                    ...getDefaultLayerParams(),
+                    frequency: frequencyToSlider(90),
+                    bufferCount: 6,
+                    volume: 0.34,
+                    pan: -0.35,
+                    density: 0.18,
+                    q: 0.8,
+                    lfoDepth: 0.12,
+                    lfoFrequency: 0.4
+                }
+            },
+            {
+                customName: "Soft air layer",
+                isMuted: false,
+                params: {
+                    ...getDefaultLayerParams(),
+                    frequency: frequencyToSlider(1450),
+                    bufferCount: 8,
+                    volume: 0.18,
+                    pan: 0.35,
+                    density: 0.08,
+                    q: 1.1,
+                    lfoDepth: 0.20,
+                    lfoFrequency: 0.3
+                }
+            }
+        ]
+    };
+}
+
+function setApiText(value) {
+    const output = document.getElementById("api-state-output");
+    if (output) output.value = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+}
+
+function refreshStateView() {
+    if (!window.velvetNoiseApi) return;
+    setApiText(window.velvetNoiseApi.getState());
+}
+
+function exportConfigToView() {
+    setApiText(window.velvetNoiseApi.exportConfig());
+}
+
+function syncGlobalUiFromState() {
+    const state = window.velvetNoiseApi.getState();
+    const masterSlider = document.getElementById("master-volume");
+    const masterDisplay = document.getElementById("master-volume-value");
+    const wetSlider = document.getElementById("reverb-wet");
+    const drySlider = document.getElementById("reverb-dry");
+    const wetDisplay = document.getElementById("reverb-wet-value");
+    const dryDisplay = document.getElementById("reverb-dry-value");
+
+    if (masterSlider && masterDisplay) {
+        masterSlider.value = state.master.volume;
+        masterDisplay.textContent = state.master.volume.toFixed(2);
+    }
+    if (wetSlider && drySlider && wetDisplay && dryDisplay) {
+        wetSlider.value = state.reverb.wet;
+        drySlider.value = state.reverb.dry;
+        wetDisplay.textContent = state.reverb.wet.toFixed(2);
+        dryDisplay.textContent = state.reverb.dry.toFixed(2);
+    }
+}
+
+function loadConfigFromView() {
+    const output = document.getElementById("api-state-output");
+    if (!output) return;
+
+    try {
+        const config = JSON.parse(output.value);
+        const ok = window.velvetNoiseApi.loadConfig(config);
+        syncGlobalUiFromState();
+        refreshStateView();
+        if (!ok) console.warn("Config load failed: expected an object with a voices array.");
+    } catch (error) {
+        console.warn("Could not parse config JSON", error);
+    }
+}
+
+function loadSoftSleepPreset() {
+    window.velvetNoiseApi.loadConfig(getSoftSleepPresetConfig());
+    syncGlobalUiFromState();
+    exportConfigToView();
+}
+
+function initApp() {
+    // Guard against double initialization. This is important on mobile browsers and previews
+    // where DOMContentLoaded timing can differ from desktop testing.
+    if (layerManager) return;
+
+    setupGlobalUI();
+    layerManager = new LayerManager(velvetEngine, "layers-container");
+    layerManager.addLayer();
+    refreshStateView();
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initApp);
+} else {
+    initApp();
+}
+
+document.addEventListener("click", async function() {
+    await audioEngine.init();
+    await audioEngine.resume();
+}, { once: true });
+</script>
+</body>
+</html>
