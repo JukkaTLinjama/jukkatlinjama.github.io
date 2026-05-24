@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elsi App v0.7</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #181817;
+    --panel: #22211f;
+    --panel-soft: #2b2925;
+    --text: #eee8dc;
+    --muted: #bdb3a3;
+    --line: rgba(255,255,255,0.10);
+    --accent: #d8b66a;
+    --accent-soft: rgba(216,182,106,0.16);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(216,182,106,0.10), transparent 32rem),
+      linear-gradient(180deg, #1f1d1a 0%, var(--bg) 60%, #121211 100%);
+    color: var(--text);
+  }
+  .app-shell {
+    width: min(720px, 100%);
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 24px 18px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  header { text-align: center; padding: 12px 0 4px; }
+  h1 { margin: 0; font-size: clamp(34px, 10vw, 56px); letter-spacing: 0.04em; font-weight: 650; }
+  .version { margin-top: 6px; color: var(--muted); font-size: 13px; }
+  .scene-card, .controls-card {
+    background: rgba(34,33,31,0.86);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: 0 22px 70px rgba(0,0,0,0.28);
+    padding: 18px;
+  }
+  .current-scene { min-height: 118px; display: flex; flex-direction: column; justify-content: center; text-align: center; }
+  #scene-title { margin: 0 0 8px; font-size: 28px; font-weight: 600; }
+  #scene-description { margin: 0 0 16px; color: var(--muted); line-height: 1.45; }
+  .scene-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .scene-button {
+    min-height: 96px;
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: var(--panel-soft);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+  }
+  .scene-button span { display: block; font-size: 18px; margin-bottom: 6px; }
+  .scene-button small { display: block; color: var(--muted); line-height: 1.3; }
+  .scene-button.active { border-color: rgba(216,182,106,0.65); background: var(--accent-soft); }
+  .scene-button-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .scene-level { color: var(--accent); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .scene-level-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .scene-level-button {
+    min-height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: rgba(0,0,0,0.16);
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .scene-level-button:active { background: rgba(216,182,106,0.16); }
+  .transport { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .transport button, .volume-button {
+    min-height: 64px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: #333029;
+    color: var(--text);
+    font-size: 17px;
+    cursor: pointer;
+  }
+  .transport button.primary { background: #5a4a2b; border-color: rgba(216,182,106,0.45); }
+  .transport button:disabled { opacity: 0.38; cursor: default; }
+  .button-grow { animation: buttonGrow 1s cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+  .button-shrink { animation: buttonShrink 1s cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+  @keyframes buttonGrow {
+    0% { transform: scale(1); }
+    18% { transform: scale(1.075); }
+    100% { transform: scale(1); }
+  }
+  @keyframes buttonShrink {
+    0% { transform: scale(1); }
+    18% { transform: scale(0.925); }
+    100% { transform: scale(1); }
+  }
+  .volume-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .volume-button { min-height: 48px; font-size: 14px; color: var(--muted); }
+  .volume-button.active { color: var(--text); background: var(--accent-soft); border-color: rgba(216,182,106,0.55); }
+  .status { text-align: center; color: var(--muted); min-height: 22px; font-size: 14px; }
+  .note { color: var(--muted); font-size: 12px; line-height: 1.45; text-align: center; margin: 0; }
+  @media (max-width: 520px) {
+    .app-shell { padding: 18px 12px 26px; }
+    .scene-grid { grid-template-columns: 1fr; }
+    .scene-button { min-height: 82px; }
+  }
+</style>
+</head>
+<body>
+<main class="app-shell">
+  <header>
+    <h1>Elsi</h1>
+    <div class="version">v0.8 · vacuum tuning and loudness reference</div>
+  </header>
+
+  <section class="scene-card current-scene" aria-live="polite">
+    <h2 id="scene-title">Sleep</h2>
+    <p id="scene-description">Very soft low bed with slow air movement.</p>
+    <div class="transport">
+      <button id="start-button" class="primary">Start</button>
+      <button id="stop-button">Stop</button>
+    </div>
+    <div class="volume-row" aria-label="Volume">
+      <button class="volume-button" data-volume-mode="soft">Soft</button>
+      <button class="volume-button" data-volume-mode="normal">Normal</button>
+      <button class="volume-button" data-volume-mode="full">Full</button>
+    </div>
+    <div id="elsi-status" class="status">Stopped</div>
+  </section>
+
+  <section class="scene-grid" id="scene-grid" aria-label="Scenes"></section>
+
+  <p class="note">This first Elsi prototype hides the technical mixer and controls the Velvet Noise v5.0 engine through window.velvetNoiseApi.</p>
+</main>
+<script>
+
+// ============================================
+// Constants - v4.14: API config tools, 16 kHz frequency UI, and 10 Hz output HP
+// ============================================
+const MIN_FREQ = 20;
+const MAX_FREQ = 16000;
+const OUTPUT_HIGHPASS_HZ = 10;
+const FREQ_RATIO = MAX_FREQ / MIN_FREQ;
+
+function sliderToFrequency(value) {
+    return MIN_FREQ * Math.pow(FREQ_RATIO, value);
+}
+
+function frequencyToSlider(freq) {
+    return Math.log(freq / MIN_FREQ) / Math.log(FREQ_RATIO);
+}
+
+function formatHz(freq) {
+    if (freq >= 1000) return (freq / 1000).toFixed(freq >= 3000 ? 1 : 2) + " kHz";
+    return Math.round(freq) + " Hz";
+}
+
+// One source of truth for layer controls. Add new layer parameters here first.
+const LAYER_PARAM_DEFS = [
+    { key: "frequency", label: "Frequency", min: 0, max: 1, step: 0.001, defaultValue: frequencyToSlider(1000), display: v => formatHz(sliderToFrequency(v)) },
+    { key: "bufferCount", label: "Buffer Count", min: 1, max: 10, step: 1, defaultValue: 2, display: v => String(Math.round(v)) },
+    { key: "volume", label: "Volume", min: 0, max: 1, step: 0.01, defaultValue: 0.5, display: v => v.toFixed(2) },
+    { key: "pan", label: "Pan", min: -1, max: 1, step: 0.1, defaultValue: -0.5, display: v => v.toFixed(2) },
+    { key: "density", label: "Density", min: 0.01, max: 0.5, step: 0.01, defaultValue: 0.3, display: v => v.toFixed(2) },
+    { key: "q", label: "Q", min: 0.1, max: 10, step: 0.1, defaultValue: 0.7, display: v => v.toFixed(2) },
+    { key: "lfoDepth", label: "LFO Depth", min: 0, max: 1, step: 0.01, defaultValue: 0.3, display: v => v.toFixed(2) },
+    { key: "lfoFrequency", label: "LFO Rate", min: 0.1, max: 4, step: 0.1, defaultValue: 1.0, display: v => v.toFixed(1) + " Hz" },
+    { key: "textureDrift", label: "Texture Drift", min: 0, max: 1, step: 0.01, defaultValue: 0.25, display: v => v.toFixed(2) }
+];
+
+function getLayerParamDef(key) {
+    return LAYER_PARAM_DEFS.find(def => def.key === key);
+}
+
+function clamp01(value) {
+    return Math.max(0, Math.min(1, value));
+}
+
+function getParamPercent(key, value) {
+    const def = getLayerParamDef(key);
+    if (!def) return 0;
+    const min = Number(def.min);
+    const max = Number(def.max);
+    if (max === min) return 0;
+    return clamp01((value - min) / (max - min)) * 100;
+}
+
+function getLfoDepthParamFromGain(depthGain, baseFrequency) {
+    const denom = Math.max(1e-6, baseFrequency * 0.35);
+    return clamp01(depthGain / denom);
+}
+
+function getDefaultLayerParams() {
+    const params = {};
+    LAYER_PARAM_DEFS.forEach(def => {
+        params[def.key] = def.defaultValue;
+    });
+    return params;
+}
+
+// ============================================
+// AudioEngine Class
+// ============================================
+class AudioEngine {
+    constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.outputHighpass = null;
+        this.reverbDryGain = null;
+        this.reverbWetGain = null;
+        this.leftConvolver = null;
+        this.rightConvolver = null;
+        this.channelMerger = null;
+        this.voices = [];
+        this.layers = this.voices; // Backward-compatible alias used by the demo UI.
+        this.initialized = false;
+        this.reverbWetTarget = 0.3;
+        this.reverbDryTarget = 0.7;
+    }
+
+    async init() {
+        if (this.initialized) return;
+
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.5;
+
+        this.outputHighpass = this.ctx.createBiquadFilter();
+        this.outputHighpass.type = "highpass";
+        this.outputHighpass.frequency.value = OUTPUT_HIGHPASS_HZ;
+        this.outputHighpass.Q.value = 0.707;
+
+        this.reverbDryGain = this.ctx.createGain();
+        this.reverbDryGain.gain.value = this.reverbDryTarget;
+        this.reverbDryGain.connect(this.ctx.destination);
+
+        this.reverbWetGain = this.ctx.createGain();
+        this.reverbWetGain.gain.value = this.reverbWetTarget;
+        this.reverbWetGain.connect(this.ctx.destination);
+
+        this.channelMerger = this.ctx.createChannelMerger(2);
+        this.channelMerger.connect(this.reverbWetGain);
+
+        this.leftConvolver = this.ctx.createConvolver();
+        this.rightConvolver = this.ctx.createConvolver();
+        this.leftConvolver.connect(this.channelMerger, 0, 0);
+        this.rightConvolver.connect(this.channelMerger, 0, 1);
+
+        // One 10 Hz output high-pass removes DC and subsonic build-up while keeping
+        // the audible low-frequency slider range starting at 20 Hz.
+        this.masterGain.connect(this.outputHighpass);
+        this.outputHighpass.connect(this.reverbDryGain);
+        this.outputHighpass.connect(this.leftConvolver);
+        this.outputHighpass.connect(this.rightConvolver);
+
+        await this.updateStereoImpulseResponse(1.5);
+        this.initialized = true;
+    }
+
+    async resume() {
+        if (this.ctx && this.ctx.state === "suspended") await this.ctx.resume();
+    }
+
+    async updateStereoImpulseResponse(decay) {
+        const sampleRate = this.ctx.sampleRate;
+        const duration = 4;
+        const length = sampleRate * duration;
+
+        const createWarmTail = (sideOffset = 0) => {
+            const buffer = this.ctx.createBuffer(1, length, sampleRate);
+            const data = buffer.getChannelData(0);
+            let lowState = 0;
+            let peak = 0;
+
+            for (let i = 0; i < length; i++) {
+                const t = i / sampleRate;
+                const white = Math.random() * 2 - 1;
+                const decorrelated = Math.random() * 2 - 1;
+
+                // A simple one-pole low-pass creates a warm diffuse tail.
+                // v4.15 keeps warmth, but reduces low-frequency build-up in the reverb.
+                const lowpassAmount = 0.004 + sideOffset;
+                lowState += lowpassAmount * (white - lowState);
+
+                const highTail = decorrelated * Math.exp(-t / Math.max(0.05, decay * 0.35)) * 0.22;
+                const lowTail = lowState * Math.exp(-t / Math.max(0.05, decay * 0.85)) * 0.55;
+                const earlyTap = white * Math.exp(-t / 0.025) * 0.06;
+
+                data[i] = highTail + lowTail + earlyTap;
+                peak = Math.max(peak, Math.abs(data[i]));
+            }
+
+            // Keep the generated impulse response at a controlled level.
+            const normalizer = peak > 0 ? 0.75 / peak : 1;
+            for (let i = 0; i < length; i++) data[i] *= normalizer;
+            return buffer;
+        };
+
+        this.leftConvolver.buffer = createWarmTail(0.0000);
+        this.rightConvolver.buffer = createWarmTail(0.0015);
+    }
+
+
+    fadeInWetReverb(seconds = 2.8) {
+        if (!this.ctx || !this.reverbWetGain) return;
+
+        const now = this.ctx.currentTime;
+        const target = this.reverbWetTarget;
+
+        // The convolver has no previous tail at startup. Fade in only the wet path
+        // slowly so the dry bed starts cleanly while the reverb field fills.
+        this.reverbWetGain.gain.cancelScheduledValues(now);
+        this.reverbWetGain.gain.setValueAtTime(0.0, now);
+        this.reverbWetGain.gain.linearRampToValueAtTime(target, now + seconds);
+    }
+
+    addVoice(voice) {
+        this.voices.push(voice);
+    }
+
+    removeVoiceRef(voice) {
+        this.voices = this.voices.filter(item => item !== voice);
+        this.layers = this.voices;
+    }
+
+    addLayer(layer) {
+        this.addVoice(layer);
+    }
+
+    getContext() {
+        return this.ctx;
+    }
+}
+
+// ============================================
+// VelvetVoice Class
+// ============================================
+class VelvetVoice {
+    constructor(id, audioEngine, config = {}) {
+        this.id = id;
+        this.audioEngine = audioEngine;
+
+        // Copyable layer state. This object must stay free of Web Audio nodes.
+        this.params = { ...getDefaultLayerParams(), ...(config.params || config) };
+        this.isMuted = Boolean(config.isMuted);
+        this.customName = config.customName || "";
+
+        // Runtime-only audio nodes. These are rebuilt when playback starts and are never copied.
+        this.nodes = {
+            bufferSources: [],
+            lowpassFilter: null,
+            eqCompGain: null,
+            panner: null,
+            continuousGain: null,
+            pulseGain: null,
+            gain: null,
+            lfo: null,
+            lfoGain: null
+        };
+
+        this.isPlaying = false;
+        this.noiseBuffers = [];
+        this.element = null;
+        this.baseFrequency = sliderToFrequency(this.params.frequency);
+        this.textureDriftTimer = null;
+        this.bufferRebuildTimer = null;
+        this.currentDriftLfoFrequency = this.params.lfoFrequency;
+        this.currentDriftLfoDepth = this.params.lfoDepth;
+    }
+
+    static fromConfig(id, audioEngine, config) {
+        return new VelvetVoice(id, audioEngine, config);
+    }
+
+    toConfig() {
+        return {
+            params: { ...this.params },
+            isMuted: this.isMuted,
+            customName: this.customName
+        };
+    }
+
+    get displayName() {
+        const freqName = formatHz(this.baseFrequency);
+        return this.customName ? `${this.customName} - ${freqName}` : `Layer ${this.id} - ${freqName}`;
+    }
+
+    getDensityCompensation() {
+        const referenceDensity = 0.30;
+        const safeDensity = Math.max(this.params.density, 0.01);
+        // Partial density compensation: sparse impulses get a moderate gain lift, but not full RMS matching.
+        return Math.pow(referenceDensity / safeDensity, 0.35);
+    }
+
+    fillNoiseBuffer(buffer) {
+        const data = buffer.getChannelData(0);
+        const density = Math.max(this.params.density, 0.01);
+        const bufferCount = Math.max(1, Math.round(this.params.bufferCount || 1));
+        // Multiple independent velvet buffers are summed. Scale each buffer by
+        // 1 / sqrt(bufferCount) to keep total energy roughly stable.
+        const perBufferGain = 1 / Math.sqrt(bufferCount);
+        const impulseAmplitude = 0.2 * this.getDensityCompensation() * perBufferGain;
+
+        for (let i = 0; i < data.length; i++) {
+            data[i] = Math.random() < density ? (Math.random() < 0.5 ? impulseAmplitude : -impulseAmplitude) : 0;
+        }
+    }
+
+    createNoiseBuffer(durationSeconds = 2) {
+        const ctx = this.audioEngine.getContext();
+        if (!ctx) return null;
+        const safeDuration = Math.max(0.25, durationSeconds);
+        const bufferSize = Math.max(1, Math.round(ctx.sampleRate * safeDuration));
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        this.fillNoiseBuffer(buffer);
+        return buffer;
+    }
+
+    updateNoiseBuffer() {
+        this.noiseBuffers.forEach(buffer => this.fillNoiseBuffer(buffer));
+    }
+
+    updateEQCompensation(frequency, gainNode) {
+        const referenceFreq = 1000;
+        const octavesFromRef = Math.log2(frequency / referenceFreq);
+        // EQ compensation only: +6 dB per octave below 1 kHz, -6 dB per octave above 1 kHz.
+        const eqGainInDB = octavesFromRef * -6;
+
+        gainNode.gain.value = Math.pow(10, eqGainInDB / 20);
+        return { eqGain: eqGainInDB, totalGain: eqGainInDB };
+    }
+
+    getBaseLfoDepthGain() {
+        return this.params.lfoDepth * this.baseFrequency * 0.35;
+    }
+
+    applyBaseLfoTargets(timeConstant = 0.05) {
+        const ctx = this.audioEngine.getContext();
+        const n = this.nodes;
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+        this.currentDriftLfoFrequency = this.params.lfoFrequency;
+        this.currentDriftLfoDepth = this.params.lfoDepth;
+        if (n.lfo) n.lfo.frequency.setTargetAtTime(this.params.lfoFrequency, now, timeConstant);
+        if (n.lfoGain) n.lfoGain.gain.setTargetAtTime(this.getBaseLfoDepthGain(), now, timeConstant);
+        this.updateDriftIndicators(false);
+    }
+
+    stopTextureDrift() {
+        if (this.textureDriftTimer) {
+            window.clearTimeout(this.textureDriftTimer);
+            this.textureDriftTimer = null;
+        }
+    }
+
+    scheduleTextureDrift() {
+        this.stopTextureDrift();
+
+        const amount = Math.max(0, Math.min(1, this.params.textureDrift || 0));
+        if (!this.isPlaying || amount <= 0) {
+            this.applyBaseLfoTargets(0.2);
+            return;
+        }
+
+        const runDriftStep = () => {
+            const ctx = this.audioEngine.getContext();
+            const n = this.nodes;
+            const driftAmount = Math.max(0, Math.min(1, this.params.textureDrift || 0));
+
+            if (!this.isPlaying || !ctx || !n.lfo || !n.lfoGain || driftAmount <= 0) {
+                this.stopTextureDrift();
+                this.applyBaseLfoTargets(0.2);
+                return;
+            }
+
+            const now = ctx.currentTime;
+            const baseRate = Math.max(0.1, this.params.lfoFrequency);
+            const signedRate = Math.random() * 2 - 1;
+            const signedDepth = Math.random() * 2 - 1;
+
+            // Wider audible drift. Rate uses an exponential ratio so slow base rates
+            // can move clearly without becoming negative, while fast rates stay controlled.
+            const rateOctaveRange = 1.25 * driftAmount;
+            const targetRate = Math.max(0.05, Math.min(8.0, baseRate * Math.pow(2, signedRate * rateOctaveRange)));
+
+            // Depth drift may overshoot the base slider. The ghost marker clamps visually,
+            // but the audio target is allowed to become more clearly audible.
+            const targetDepth = Math.max(0, this.getBaseLfoDepthGain() * (1 + signedDepth * 0.85 * driftAmount));
+            this.currentDriftLfoFrequency = targetRate;
+            this.currentDriftLfoDepth = getLfoDepthParamFromGain(targetDepth, this.baseFrequency);
+            this.updateDriftIndicators(true);
+
+            // Smooth the actual AudioParam motion. The time constant follows the target
+            // period: slow LFO states live and move longer, fast states can change sooner.
+            const targetPeriodSec = 1 / Math.max(0.05, targetRate);
+            const smoothingSec = Math.max(0.20, Math.min(2.50, targetPeriodSec * 0.45));
+            n.lfo.frequency.setTargetAtTime(targetRate, now, smoothingSec);
+            n.lfoGain.gain.setTargetAtTime(targetDepth, now, smoothingSec);
+
+            const baseHoldMs = Math.max(300, Math.min(4500, targetPeriodSec * 1200));
+            const jitterMs = (Math.random() * 2 - 1) * baseHoldMs * 0.25 * driftAmount;
+            this.textureDriftTimer = window.setTimeout(runDriftStep, Math.max(220, baseHoldMs + jitterMs));
+        };
+
+        this.textureDriftTimer = window.setTimeout(runDriftStep, 300 + Math.random() * 700);
+    }
+
+    scheduleBufferGraphRebuild() {
+        if (!this.isPlaying) return;
+        if (this.bufferRebuildTimer) window.clearTimeout(this.bufferRebuildTimer);
+
+        // Range inputs can fire several times while dragging. Debounce the expensive
+        // graph rebuild so Buffer Count does not create repeated stop/start bursts.
+        this.bufferRebuildTimer = window.setTimeout(async () => {
+            this.bufferRebuildTimer = null;
+            if (!this.isPlaying) return;
+            this.stop();
+            await new Promise(resolve => window.setTimeout(resolve, 170));
+            await this.start();
+        }, 120);
+    }
+
+    buildAudioGraph() {
+        const ctx = this.audioEngine.getContext();
+        if (!ctx) return;
+
+        this.baseFrequency = sliderToFrequency(this.params.frequency);
+        const bufferCount = Math.max(1, Math.round(this.params.bufferCount || 1));
+
+        // Avoid a shared 2-second loop period across all summed buffers. Equal loop
+        // lengths can create an audible startup flutter or common loop-boundary rhythm.
+        this.noiseBuffers = Array.from({ length: bufferCount }, (_, index) => {
+            const durationJitter = index === 0 ? 0 : (Math.random() * 0.80 - 0.20);
+            return this.createNoiseBuffer(2.0 + durationJitter);
+        });
+
+        const n = this.nodes;
+        n.bufferSources = this.noiseBuffers.map(buffer => {
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+            return source;
+        });
+
+        n.lowpassFilter = ctx.createBiquadFilter();
+        n.lowpassFilter.type = "lowpass";
+
+        n.eqCompGain = ctx.createGain();
+        n.panner = ctx.createStereoPanner();
+        n.continuousGain = ctx.createGain();
+        n.pulseGain = ctx.createGain();
+        n.pulseGain.gain.value = 0.0;
+        n.gain = ctx.createGain();
+
+        n.lfo = ctx.createOscillator();
+        n.lfo.type = "sine";
+        // Avoid the oscillator default 440 Hz startup sweep. Set the real
+        // LFO rate before start(), then fade modulation depth in separately.
+        n.lfo.frequency.value = this.params.lfoFrequency;
+        n.lfoGain = ctx.createGain();
+        n.lfoGain.gain.value = 0;
+
+        n.lfo.connect(n.lfoGain);
+        n.lfoGain.connect(n.lowpassFilter.frequency);
+
+        // All velvet buffers feed the same voice filter. Each source starts from
+        // a different random offset to reduce short-loop repetition.
+        n.bufferSources.forEach(source => source.connect(n.lowpassFilter));
+        n.lowpassFilter.connect(n.eqCompGain);
+        n.eqCompGain.connect(n.panner);
+        n.panner.connect(n.continuousGain);
+        n.continuousGain.connect(n.gain);
+        n.panner.connect(n.pulseGain);
+        n.pulseGain.connect(n.gain);
+        n.gain.connect(this.audioEngine.masterGain);
+
+        Object.keys(this.params).forEach(param => {
+            // LFO params are initialized explicitly before oscillator start.
+            // Calling setTargetAtTime() here would ramp from Web Audio defaults
+            // and can create an audible decelerating flutter at startup.
+            if (param === "lfoFrequency" || param === "lfoDepth" || param === "textureDrift") return;
+            this.applyParamToAudio(param, this.params[param]);
+        });
+        this.currentDriftLfoFrequency = this.params.lfoFrequency;
+        this.currentDriftLfoDepth = this.params.lfoDepth;
+        this.updateDriftIndicators(false);
+        this.applyMuteToAudio();
+
+        // Start the continuous bed silently. start() fades it in after the sources
+        // begin, which masks buffer-onset flutter without affecting the saved config.
+        if (n.continuousGain) n.continuousGain.gain.value = 0;
+
+        n.lfo.start(0);
+        this.updateDisplay();
+    }
+
+    applyParamToAudio(param, value) {
+        const n = this.nodes;
+
+        switch (param) {
+            case "density":
+                this.updateNoiseBuffer();
+                break;
+            case "bufferCount":
+                // Buffer count changes the graph topology, so rebuild only when playing.
+                this.params.bufferCount = Math.max(1, Math.round(value));
+                this.scheduleBufferGraphRebuild();
+                break;
+            case "frequency":
+                this.baseFrequency = sliderToFrequency(value);
+                if (n.lowpassFilter) n.lowpassFilter.frequency.value = this.baseFrequency;
+                if (n.eqCompGain) this.updateEQCompensation(this.baseFrequency, n.eqCompGain);
+                this.applyBaseLfoTargets(0.05);
+                break;
+            case "q":
+                if (n.lowpassFilter) n.lowpassFilter.Q.value = value;
+                break;
+            case "pan":
+                if (n.panner) n.panner.pan.value = value;
+                break;
+            case "volume":
+                this.applyMuteToAudio();
+                break;
+            case "lfoDepth":
+                // LFO depth controls modulation amount: 0 = no modulation, 1 = strong modulation.
+                this.applyBaseLfoTargets(0.05);
+                break;
+            case "lfoFrequency":
+                this.applyBaseLfoTargets(0.05);
+                break;
+            case "textureDrift":
+                this.scheduleTextureDrift();
+                break;
+        }
+    }
+
+    applyMuteToAudio() {
+        const n = this.nodes;
+        // Mute only silences the continuous bed. Pulse gain remains available,
+        // so muted layers can still be used as one-shot roughness events.
+        if (n.continuousGain) n.continuousGain.gain.value = this.isMuted ? 0 : 1;
+        if (n.gain) n.gain.gain.value = this.params.volume;
+    }
+
+    async start() {
+        if (this.isPlaying) return;
+        await this.audioEngine.init();
+        await this.audioEngine.resume();
+        this.buildAudioGraph();
+        const ctx = this.audioEngine.getContext();
+        const now = ctx.currentTime;
+        const startAt = now + 0.050;
+
+        this.nodes.bufferSources.forEach(source => {
+            const duration = source.buffer ? source.buffer.duration : 0;
+            const offset = duration > 0 ? Math.random() * duration : 0;
+            // Start all summed buffers at the same audio-clock time, but from
+            // random buffer offsets. Staggered source.start() times can create
+            // an audible startup flutter when many buffers fade in one by one.
+            source.start(startAt, offset);
+        });
+
+        const targetContinuousGain = this.isMuted ? 0 : 1;
+        if (this.nodes.continuousGain) {
+            this.nodes.continuousGain.gain.cancelScheduledValues(now);
+            this.nodes.continuousGain.gain.setValueAtTime(0, now);
+            this.nodes.continuousGain.gain.setValueAtTime(0, startAt);
+            this.nodes.continuousGain.gain.linearRampToValueAtTime(targetContinuousGain, startAt + 1.40);
+        }
+
+        if (this.nodes.lfoGain) {
+            const targetLfoDepth = this.getBaseLfoDepthGain();
+            this.nodes.lfoGain.gain.cancelScheduledValues(now);
+            this.nodes.lfoGain.gain.setValueAtTime(0, now);
+            this.nodes.lfoGain.gain.setValueAtTime(0, startAt + 0.15);
+            // Fade in LFO influence slowly. The oscillator itself is already
+            // running at the correct low rate, so no high-rate startup sweep occurs.
+            this.nodes.lfoGain.gain.linearRampToValueAtTime(targetLfoDepth, startAt + 2.20);
+        }
+
+        this.isPlaying = true;
+        this.textureDriftTimer = window.setTimeout(() => this.scheduleTextureDrift(), 2200);
+    }
+
+    stop() {
+        if (!this.isPlaying) return;
+        this.stopTextureDrift();
+        if (this.bufferRebuildTimer) {
+            window.clearTimeout(this.bufferRebuildTimer);
+            this.bufferRebuildTimer = null;
+        }
+
+        const ctx = this.audioEngine.getContext();
+        const n = this.nodes;
+        const fadeTime = 0.080;
+        const cleanupDelayMs = 120;
+
+        // Fade the voice before stopping nodes. This prevents stop-clicks and still lets
+        // the shared convolver ring naturally from the already-fed signal.
+        if (ctx && n.gain) {
+            const now = ctx.currentTime;
+            const currentGain = n.gain.gain.value;
+            n.gain.gain.cancelScheduledValues(now);
+            n.gain.gain.setValueAtTime(currentGain, now);
+            n.gain.gain.linearRampToValueAtTime(0.0001, now + fadeTime);
+        }
+
+        const nodesToClean = { ...this.nodes };
+        window.setTimeout(() => {
+            (nodesToClean.bufferSources || []).forEach(source => {
+                try { if (source) source.stop(0); } catch (e) {}
+            });
+            try { if (nodesToClean.lfo) nodesToClean.lfo.stop(0); } catch (e) {}
+
+            Object.values(nodesToClean).forEach(node => {
+                try { if (node) node.disconnect(); } catch (e) {}
+            });
+        }, cleanupDelayMs);
+
+        this.nodes = {
+            bufferSources: [],
+            lowpassFilter: null,
+            eqCompGain: null,
+            panner: null,
+            continuousGain: null,
+            pulseGain: null,
+            gain: null,
+            lfo: null,
+            lfoGain: null
+        };
+        this.noiseBuffers = [];
+        this.isPlaying = false;
+    }
+
+    triggerEnvelope(options = {}) {
+        const ctx = this.audioEngine.getContext();
+        const pulseGain = this.nodes.pulseGain;
+        if (!ctx || !pulseGain) return;
+
+        const attack = options.attack ?? 0.005;
+        const hold = options.hold ?? 0.050;
+        const release = options.release ?? 0.300;
+        const base = options.base ?? 0.0;
+        const peak = options.peak ?? 2.0;
+        const now = ctx.currentTime;
+
+        // Schedule the pulse shape on the Web Audio timeline.
+        // JS only triggers the event; the audio thread handles the envelope ramps.
+        pulseGain.gain.cancelScheduledValues(now);
+        pulseGain.gain.setValueAtTime(base, now);
+        pulseGain.gain.linearRampToValueAtTime(peak, now + attack);
+        pulseGain.gain.setValueAtTime(peak, now + attack + hold);
+        pulseGain.gain.linearRampToValueAtTime(0.0, now + attack + hold + release);
+    }
+
+    setMuted(isMuted) {
+        const wasMuted = this.isMuted;
+        this.isMuted = isMuted;
+
+        // If a copied voice was created while the engine was already initialized,
+        // unmute should also create its runtime audio graph. Otherwise the UI state
+        // changes but the voice remains silent until a pulse/start action wakes it.
+        if (wasMuted && !isMuted && !this.isPlaying && this.audioEngine.initialized) {
+            this.start();
+        } else {
+            this.applyMuteToAudio();
+        }
+
+        this.updateDisplay();
+    }
+
+    toggleMute() {
+        this.setMuted(!this.isMuted);
+    }
+
+    updateParam(param, value) {
+        this.params[param] = value;
+        this.applyParamToAudio(param, value);
+        this.updateDisplay();
+    }
+
+    updateDriftIndicators(showDrift = true) {
+        if (!this.element) return;
+
+        const updateMarker = (key, value) => {
+            const wrap = this.element.querySelector(`[data-drift-wrap="${key}"]`);
+            const marker = this.element.querySelector(`[data-drift-marker="${key}"]`);
+            if (!wrap || !marker) return;
+
+            // Show the current drift target as a ghost marker behind the slider thumb.
+            marker.style.left = `${getParamPercent(key, value)}%`;
+            wrap.classList.toggle("has-drift", showDrift && Math.abs(value - this.params[key]) > 0.0001);
+        };
+
+        updateMarker("lfoFrequency", this.currentDriftLfoFrequency);
+        updateMarker("lfoDepth", this.currentDriftLfoDepth);
+    }
+
+    updateDisplay() {
+        if (!this.element) return;
+        const title = this.element.querySelector(".layer-title");
+        if (title) title.textContent = this.displayName;
+
+        const muteButton = this.element.querySelector(".mute-button");
+        if (muteButton) {
+            muteButton.textContent = this.isMuted ? "Unmute" : "Mute";
+            muteButton.classList.toggle("muted", this.isMuted);
+        }
+
+        const eq = this.computeCompensationDisplayValues();
+        this.element.querySelector(".eq-comp-value").textContent = eq.eqGain + " dB";
+        this.element.querySelector(".q-display-value").textContent = this.params.q.toFixed(2);
+        this.element.querySelector(".bandwidth-value").textContent = Math.round(this.baseFrequency / this.params.q) + " Hz";
+        this.updateDriftIndicators(this.params.textureDrift > 0 && this.isPlaying);
+    }
+
+    computeCompensationDisplayValues() {
+        const freq = this.baseFrequency;
+        const referenceFreq = 1000;
+        const octavesFromRef = Math.log2(freq / referenceFreq);
+        const eqGainInDB = octavesFromRef * -6;
+
+        return {
+            eqGain: eqGainInDB.toFixed(1)
+        };
+    }
+}
+
+// Backward-compatible name for older demo code. New code should use VelvetVoice.
+const Layer = VelvetVoice;
+
+
+// ============================================
+// Public API documentation - Velvet Noise Mixer v5.0
+// ============================================
+//
+// window.velvetNoiseApi is the supported internal browser API for demos,
+// scene controllers, and future app shells such as the Elsi ambience app.
+//
+// Design rules:
+// - The API must not depend on the demo UI.
+// - Voice configs must stay serializable plain objects.
+// - Web Audio nodes must stay runtime-only inside VelvetVoice/AudioEngine.
+// - External controllers should use this API instead of touching voices directly.
+//
+// Public methods:
+// - start(): Promise<boolean>
+//     Initialize/resume audio and start all voices. Must be called from a user
+//     gesture on browsers that require user interaction before audio playback.
+//
+// - stop(): boolean
+//     Stop all voices with their internal fade-out behavior.
+//
+// - addVoice(config): number
+//     Add a voice from a serializable config and return its numeric id.
+//
+// - removeVoice(id): boolean
+//     Stop and remove one voice.
+//
+// - cloneVoice(id): number | null
+//     Copy one voice config. Runtime audio nodes and buffers are not copied.
+//     The cloned voice starts muted as a safer default.
+//
+// - updateVoiceParam(id, param, value): boolean
+//     Update one voice parameter. Supported public param names are the keys in
+//     LAYER_PARAM_DEFS, plus the special boolean param "isMuted".
+//
+// - triggerVoice(id, options): Promise<boolean>
+//     Start the voice if needed and trigger its pulse envelope.
+//     options may include attack, hold, release, base, and peak.
+//
+// - getState(): object
+//     Return current runtime state plus serializable voice configs. Intended for
+//     debugging, UI state panels, and scene-controller inspection.
+//
+// - exportConfig(): object
+//     Return a reusable plain-object config containing master, reverb, and voices.
+//     This should be safe to JSON.stringify().
+//
+// - loadConfig(config): boolean
+//     Replace current voices and restore master/reverb values from a config
+//     produced by exportConfig() or a compatible scene preset.
+//
+// - setMasterVolume(value): boolean
+//     Set the master gain.
+//
+// - setReverbMix(wet): boolean
+//     Set wet mix; dry mix is automatically set to 1 - wet.
+//
+// - setReverbDecay(decay): Promise<boolean>
+//     Regenerate the shared stereo impulse response when audio is initialized.
+//
+// Voice config shape:
+// {
+//   params: {
+//     frequency,       // UI slider value mapped logarithmically to Hz
+//     bufferCount,     // number of independent velvet buffers summed per voice
+//     volume,
+//     pan,
+//     density,
+//     q,
+//     lfoDepth,
+//     lfoFrequency,
+//     textureDrift
+//   },
+//   isMuted,
+//   customName
+// }
+//
+// Example:
+// const id = window.velvetNoiseApi.addVoice({
+//   params: { volume: 0.35, pan: 0, density: 0.2, bufferCount: 4 },
+//   customName: "Soft texture"
+// });
+// await window.velvetNoiseApi.start();
+// window.velvetNoiseApi.triggerVoice(id, { peak: 1.5, release: 0.4 });
+//
+// ============================================
+// VelvetEngine - UI-independent control surface
+// ============================================
+class VelvetEngine {
+    constructor(audioEngine) {
+        this.audioEngine = audioEngine;
+        this.voices = [];
+        this.nextId = 1;
+        this.onVoiceAdded = null;
+        this.onVoiceRemoved = null;
+        this.onVoiceUpdated = null;
+    }
+
+    addVoice(config = {}) {
+        const voice = VelvetVoice.fromConfig(this.nextId++, this.audioEngine, config);
+        this.voices.push(voice);
+        this.audioEngine.addVoice(voice);
+        if (this.onVoiceAdded) this.onVoiceAdded(voice);
+        return voice.id;
+    }
+
+    removeVoice(id) {
+        const index = this.voices.findIndex(voice => voice.id === id);
+        if (index < 0) return false;
+
+        const [voice] = this.voices.splice(index, 1);
+        voice.stop();
+        this.audioEngine.removeVoiceRef(voice);
+        if (this.onVoiceRemoved) this.onVoiceRemoved(voice);
+        return true;
+    }
+
+    cloneVoice(id) {
+        const source = this.voices.find(voice => voice.id === id);
+        if (!source) return null;
+
+        const config = source.toConfig();
+        config.isMuted = true; // Safer default: copied voices do not jump in level immediately.
+        config.customName = config.customName || `Copy of Voice ${source.id}`;
+        return this.addVoice(config);
+    }
+
+    updateVoiceParam(id, param, value) {
+        const voice = this.voices.find(item => item.id === id);
+        if (!voice) return false;
+
+        if (param === "isMuted") {
+            voice.setMuted(Boolean(value));
+            if (this.onVoiceUpdated) this.onVoiceUpdated(voice, param, voice.isMuted);
+            return true;
+        }
+
+        if (!(param in voice.params)) return false;
+
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) return false;
+
+        voice.updateParam(param, numericValue);
+        if (this.onVoiceUpdated) this.onVoiceUpdated(voice, param, numericValue);
+        return true;
+    }
+
+    setMasterVolume(value, transitionSeconds = 0) {
+        const numericValue = Number(value);
+        const seconds = Math.max(0, Number(transitionSeconds) || 0);
+        if (!Number.isFinite(numericValue)) return false;
+
+        if (this.audioEngine.masterGain && this.audioEngine.ctx) {
+            const now = this.audioEngine.ctx.currentTime;
+            const param = this.audioEngine.masterGain.gain;
+            const current = param.value;
+
+            param.cancelScheduledValues(now);
+            param.setValueAtTime(current, now);
+
+            // Smooth app-level loudness changes. The engine lab can still pass 0 seconds
+            // for immediate changes, but Elsi uses 1 s transitions by default.
+            if (seconds > 0) {
+                param.linearRampToValueAtTime(Math.max(0, numericValue), now + seconds);
+            } else {
+                param.value = Math.max(0, numericValue);
+            }
+        }
+        return true;
+    }
+
+    setReverbMix(wet) {
+        const wetValue = Math.max(0, Math.min(1, Number(wet)));
+        if (!Number.isFinite(wetValue)) return false;
+        const dryValue = 1 - wetValue;
+        this.audioEngine.reverbWetTarget = wetValue;
+        this.audioEngine.reverbDryTarget = dryValue;
+        if (this.audioEngine.reverbWetGain) this.audioEngine.reverbWetGain.gain.value = wetValue;
+        if (this.audioEngine.reverbDryGain) this.audioEngine.reverbDryGain.gain.value = dryValue;
+        return true;
+    }
+
+    async setReverbDecay(decay) {
+        const numericValue = Number(decay);
+        if (!Number.isFinite(numericValue)) return false;
+        if (this.audioEngine.initialized) await this.audioEngine.updateStereoImpulseResponse(numericValue);
+        return true;
+    }
+
+    exportConfig() {
+        return {
+            version: "5.0",
+            master: {
+                volume: this.audioEngine.masterGain ? this.audioEngine.masterGain.gain.value : 0.5,
+                outputHighpassHz: OUTPUT_HIGHPASS_HZ
+            },
+            reverb: {
+                wet: this.audioEngine.reverbWetTarget,
+                dry: this.audioEngine.reverbDryTarget
+            },
+            voices: this.voices.map(voice => voice.toConfig())
+        };
+    }
+
+    loadConfig(config = {}) {
+        if (!config || !Array.isArray(config.voices)) return false;
+
+        [...this.voices].forEach(voice => this.removeVoice(voice.id));
+
+        if (config.master && typeof config.master.volume === "number") {
+            this.setMasterVolume(config.master.volume);
+        }
+        if (config.reverb && typeof config.reverb.wet === "number") {
+            this.setReverbMix(config.reverb.wet);
+        }
+
+        config.voices.forEach(voiceConfig => this.addVoice(voiceConfig));
+        return true;
+    }
+
+    async triggerVoice(id, options = {}) {
+        const voice = this.voices.find(item => item.id === id);
+        if (!voice) return false;
+
+        if (!voice.isPlaying) await voice.start();
+        voice.triggerEnvelope(options);
+        return true;
+    }
+
+    async start() {
+        const wasRunning = this.voices.some(voice => voice.isPlaying);
+        await this.audioEngine.init();
+        await this.audioEngine.resume();
+        if (!wasRunning) this.audioEngine.fadeInWetReverb(2.8);
+        await Promise.all(this.voices.map(voice => voice.start()));
+        return true;
+    }
+
+    stop() {
+        this.voices.forEach(voice => voice.stop());
+        return true;
+    }
+
+    getState() {
+        return {
+            initialized: this.audioEngine.initialized,
+            isRunning: this.voices.some(voice => voice.isPlaying),
+            master: {
+                volume: this.audioEngine.masterGain ? this.audioEngine.masterGain.gain.value : 0.5,
+                outputHighpassHz: OUTPUT_HIGHPASS_HZ
+            },
+            frequencyUi: {
+                minHz: MIN_FREQ,
+                maxHz: MAX_FREQ
+            },
+            reverb: {
+                wet: this.audioEngine.reverbWetTarget,
+                dry: this.audioEngine.reverbDryTarget
+            },
+            voices: this.voices.map(voice => ({
+                id: voice.id,
+                isPlaying: voice.isPlaying,
+                ...voice.toConfig()
+            }))
+        };
+    }
+}
+
+
+// ============================================
+// Elsi App v0.1 - scene shell and gentle pattern engine
+// ============================================
+const audioEngine = new AudioEngine();
+const velvetEngine = new VelvetEngine(audioEngine);
+
+// Public API object for browser demos and app-level controllers.
+// Elsi intentionally uses this API instead of touching voice internals directly.
+window.velvetNoiseApi = {
+    start: () => velvetEngine.start(),
+    stop: () => velvetEngine.stop(),
+    addVoice: config => velvetEngine.addVoice(config),
+    removeVoice: id => velvetEngine.removeVoice(id),
+    cloneVoice: id => velvetEngine.cloneVoice(id),
+    updateVoiceParam: (id, param, value) => velvetEngine.updateVoiceParam(id, param, value),
+    triggerVoice: (id, options) => velvetEngine.triggerVoice(id, options),
+    getState: () => velvetEngine.getState(),
+    exportConfig: () => velvetEngine.exportConfig(),
+    loadConfig: config => velvetEngine.loadConfig(config),
+    setMasterVolume: (value, transitionSeconds = 0) => velvetEngine.setMasterVolume(value, transitionSeconds),
+    setReverbMix: wet => velvetEngine.setReverbMix(wet),
+    setReverbDecay: decay => velvetEngine.setReverbDecay(decay)
+};
+
+const ELSI_VERSION = "0.8";
+let currentSceneKey = "sleep";
+let activeSceneKeys = new Set(["sleep"]);
+let isElsiRunning = false;
+let patternTimers = {};
+let sceneVoiceIds = {};
+let sceneBaseVolumes = {};
+let sceneCurrentGains = {};
+let sceneLevelDb = {};
+let sceneFadeTimers = {};
+let sceneToneNodes = {};
+let walkStepIndexByScene = {};
+let volumeMode = "normal";
+let volumeExtraDb = 0;
+
+const ELSI_VOLUME_STEP_DB = 6;
+const ELSI_VOLUME_MIN_DB = -48;
+const ELSI_VOLUME_MAX_DB = 60;
+const ELSI_VOLUME_TRANSITION_SEC = 1.0;
+const ELSI_STOP_FADE_SEC = 3.0;
+const ELSI_SCENE_CROSSFADE_SEC = 3.0;
+const ELSI_SCENE_LEVEL_STEP_DB = 3;
+const ELSI_SCENE_LEVEL_MIN_DB = -24;
+const ELSI_SCENE_LEVEL_MAX_DB = 24;
+let pendingStopTimer = null;
+
+const ELSI_VOLUME_MODES = {
+    soft: { label: "Soft", baseDb: -12, repeatStepDb: -ELSI_VOLUME_STEP_DB },
+    normal: { label: "Normal", baseDb: 0, repeatStepDb: 0 },
+    full: { label: "Full", baseDb: 12, repeatStepDb: ELSI_VOLUME_STEP_DB }
+};
+
+function dbToGain(db) {
+    return Math.pow(10, db / 20);
+}
+
+function getCurrentVolumeDb() {
+    const mode = ELSI_VOLUME_MODES[volumeMode] || ELSI_VOLUME_MODES.normal;
+    return mode.baseDb + volumeExtraDb;
+}
+
+function getSceneMasterVolume(scene) {
+    // v0.5 raises scene master headroom. This is a listening-test prototype,
+    // not a mastered/limited output chain.
+    const volumeDb = Math.max(ELSI_VOLUME_MIN_DB, Math.min(ELSI_VOLUME_MAX_DB, getCurrentVolumeDb()));
+    return Math.max(0, scene.master * dbToGain(volumeDb));
+}
+
+function applyCurrentVolume() {
+    const scene = ELSI_SCENES[currentSceneKey] || ELSI_SCENES.sleep;
+    window.velvetNoiseApi.setMasterVolume(getSceneMasterVolume(scene), ELSI_VOLUME_TRANSITION_SEC);
+    updateVolumeUi();
+}
+
+function setVolumeMode(mode) {
+    if (!ELSI_VOLUME_MODES[mode]) return;
+
+    if (mode === volumeMode) {
+        volumeExtraDb += ELSI_VOLUME_MODES[mode].repeatStepDb;
+    } else {
+        volumeMode = mode;
+        volumeExtraDb = 0;
+    }
+
+    if (mode === "normal") volumeExtraDb = 0;
+    volumeExtraDb = Math.max(ELSI_VOLUME_MIN_DB, Math.min(ELSI_VOLUME_MAX_DB, volumeExtraDb));
+    applyCurrentVolume();
+}
+
+function voiceParams(overrides = {}) {
+    return { ...getDefaultLayerParams(), ...overrides };
+}
+
+function makeVoice(customName, params, isMuted = false) {
+    return { customName, isMuted, params: voiceParams(params) };
+}
+
+const ELSI_SCENES = {
+    sleep: {
+        label: "Sleep",
+        description: "Very soft low bed with slow air movement.",
+        master: 1.0,
+        reverbWet: 0.42,
+        reverbDecay: 2.1,
+        pattern: "breath",
+        voices: [
+            makeVoice("sleep.lowBed", {
+                frequency: frequencyToSlider(85), bufferCount: 7, volume: 0.28, pan: -0.18,
+                density: 0.16, q: 0.75, lfoDepth: 0.08, lfoFrequency: 0.2, textureDrift: 0.28
+            }),
+            makeVoice("sleep.softAir", {
+                frequency: frequencyToSlider(1350), bufferCount: 9, volume: 0.12, pan: 0.22,
+                density: 0.07, q: 1.2, lfoDepth: 0.12, lfoFrequency: 0.2, textureDrift: 0.36
+            })
+        ]
+    },
+    rain: {
+        label: "Rain",
+        description: "Fine rain texture with distant low warmth.",
+        master: 1.0,
+        reverbWet: 0.34,
+        reverbDecay: 1.7,
+        pattern: "sparseDrops",
+        voices: [
+            makeVoice("rain.fineMist", {
+                frequency: frequencyToSlider(2600), bufferCount: 10, volume: 0.20, pan: -0.10,
+                density: 0.12, q: 1.1, lfoDepth: 0.10, lfoFrequency: 0.3, textureDrift: 0.45
+            }),
+            makeVoice("rain.lowRoom", {
+                frequency: frequencyToSlider(170), bufferCount: 5, volume: 0.14, pan: 0.12,
+                density: 0.14, q: 0.8, lfoDepth: 0.06, lfoFrequency: 0.2, textureDrift: 0.30
+            }),
+            makeVoice("rain.drops", {
+                frequency: frequencyToSlider(950), bufferCount: 4, volume: 0.08, pan: 0.0,
+                density: 0.04, q: 2.2, lfoDepth: 0.04, lfoFrequency: 0.2, textureDrift: 0.10
+            }, true)
+        ]
+    },
+    walk: {
+        label: "Walk",
+        description: "Alternating left/right soft foot texture. Experimental pattern engine test.",
+        master: 1.0,
+        reverbWet: 0.30,
+        reverbDecay: 1.4,
+        pattern: "walk",
+        voices: [
+            makeVoice("walk.groundBed", {
+                frequency: frequencyToSlider(120), bufferCount: 5, volume: 0.11, pan: 0,
+                density: 0.11, q: 0.75, lfoDepth: 0.05, lfoFrequency: 0.2, textureDrift: 0.18
+            }),
+            makeVoice("walk.leftFoot", {
+                frequency: frequencyToSlider(520), bufferCount: 5, volume: 0.10, pan: -0.26,
+                density: 0.06, q: 1.8, lfoDepth: 0.03, lfoFrequency: 0.2, textureDrift: 0.08
+            }, true),
+            makeVoice("walk.rightFoot", {
+                frequency: frequencyToSlider(610), bufferCount: 5, volume: 0.095, pan: 0.28,
+                density: 0.055, q: 1.7, lfoDepth: 0.03, lfoFrequency: 0.2, textureDrift: 0.08
+            }, true)
+        ]
+    },
+    calm: {
+        label: "Calm",
+        description: "Balanced mid-low velvet field.",
+        master: 1.0,
+        reverbWet: 0.38,
+        reverbDecay: 2.0,
+        pattern: "slowEvents",
+        voices: [
+            makeVoice("calm.body", {
+                frequency: frequencyToSlider(220), bufferCount: 7, volume: 0.20, pan: -0.12,
+                density: 0.12, q: 0.9, lfoDepth: 0.09, lfoFrequency: 0.2, textureDrift: 0.32
+            }),
+            makeVoice("calm.air", {
+                frequency: frequencyToSlider(1800), bufferCount: 8, volume: 0.11, pan: 0.18,
+                density: 0.06, q: 1.2, lfoDepth: 0.09, lfoFrequency: 0.2, textureDrift: 0.38
+            })
+        ]
+    },
+    warmNoise: {
+        label: "Warm Noise",
+        description: "Low-passed warm noise blanket.",
+        master: 1.0,
+        reverbWet: 0.28,
+        reverbDecay: 1.5,
+        pattern: "none",
+        voices: [
+            makeVoice("warm.low", {
+                frequency: frequencyToSlider(260), bufferCount: 8, volume: 0.25, pan: -0.08,
+                density: 0.20, q: 0.7, lfoDepth: 0.06, lfoFrequency: 0.2, textureDrift: 0.20
+            }),
+            makeVoice("warm.mid", {
+                frequency: frequencyToSlider(850), bufferCount: 8, volume: 0.13, pan: 0.10,
+                density: 0.12, q: 0.9, lfoDepth: 0.07, lfoFrequency: 0.2, textureDrift: 0.24
+            })
+        ]
+    },
+    softAir: {
+        label: "Soft Air",
+        description: "High airy layer with almost no pulse content.",
+        master: 1.0,
+        reverbWet: 0.48,
+        reverbDecay: 2.4,
+        pattern: "breath",
+        voices: [
+            makeVoice("air.main", {
+                frequency: frequencyToSlider(2500), bufferCount: 10, volume: 0.15, pan: -0.10,
+                density: 0.055, q: 1.0, lfoDepth: 0.10, lfoFrequency: 0.2, textureDrift: 0.42
+            }),
+            makeVoice("air.distance", {
+                frequency: frequencyToSlider(900), bufferCount: 6, volume: 0.07, pan: 0.18,
+                density: 0.05, q: 0.8, lfoDepth: 0.06, lfoFrequency: 0.2, textureDrift: 0.35
+            })
+        ]
+    },
+    vacuum: {
+        label: "Vacuum",
+        description: "Hybrid test: harmonic motor core plus velvet air turbulence.",
+        master: 1.0,
+        reverbWet: 0.16,
+        reverbDecay: 1.1,
+        pattern: "vacuumLoad",
+        // Vacuum is a hybrid scene: tonal motor identity plus velvet-noise air turbulence.
+        // Tune the motor identity in toneVoices; tune turbulent air and resonant noise in voices.
+        toneVoices: [
+            //{ name: "vacuum.motor.110", frequency: 37, gain: 0.12, type: "sine", tremoloHz: 37, tremoloDepth: 0.250, detuneCents: 0 },
+            { name: "vacuum.harmonic.220", frequency: 220, gain: 0.020, type: "sine", tremoloHz: 23, tremoloDepth: 0.05, detuneCents: 2 },
+            //{ name: "vacuum.harmonic.330", frequency: 330, gain: 0.013, type: "sine", tremoloHz: 37, tremoloDepth: 0.0024, detuneCents: -3 },
+            //{ name: "vacuum.harmonic.550", frequency: 550, gain: 0.008, type: "sine", tremoloHz: 37, tremoloDepth: 0.0016, detuneCents: 4 }
+        ],
+        voices: [
+            makeVoice("vacuum.airCore", {
+                frequency: frequencyToSlider(1750), bufferCount: 10, volume: 0.22, pan: -0.05,
+                density: 0.30, q: 1.15, lfoDepth: 0.10, lfoFrequency: 0.23, textureDrift: 0.50
+            }),
+            makeVoice("vacuum.harmonicNoise220", {
+                frequency: frequencyToSlider(220), bufferCount: 8, volume: 0.10, pan: -0.08,
+                density: 0.16, q: 7.5, lfoDepth: 0.07, lfoFrequency: 0.31, textureDrift: 0.55
+            }),
+            makeVoice("vacuum.pipeResonance", {
+                frequency: frequencyToSlider(720), bufferCount: 7, volume: 0.13, pan: 0.10,
+                density: 0.16, q: 5.5, lfoDepth: 0.07, lfoFrequency: 0.18, textureDrift: 0.42
+            }),
+            makeVoice("vacuum.harmonicNoise550", {
+                frequency: frequencyToSlider(550), bufferCount: 7, volume: 0.09, pan: 0.08,
+                density: 0.14, q: 8.0, lfoDepth: 0.08, lfoFrequency: 0.27, textureDrift: 0.58
+            }),
+            makeVoice("vacuum.highHiss", {
+                frequency: frequencyToSlider(4800), bufferCount: 10, volume: 0.025, pan: 0.16,
+                density: 0.14, q: 0.75, lfoDepth: 0.035, lfoFrequency: 0.17, textureDrift: 0.30
+            })
+        ]
+    }
+};
+
+function getActiveSceneList() {
+    return Array.from(activeSceneKeys).filter(key => ELSI_SCENES[key]);
+}
+
+function getSceneMixGain(sceneKey) {
+    return sceneCurrentGains[sceneKey] || 0;
+}
+
+function getSceneLevelDb(sceneKey) {
+    return sceneLevelDb[sceneKey] || 0;
+}
+
+function getSceneLevelGain(sceneKey) {
+    return dbToGain(getSceneLevelDb(sceneKey));
+}
+
+function changeSceneLevel(sceneKey, deltaDb) {
+    if (!ELSI_SCENES[sceneKey]) return;
+    const before = getSceneLevelDb(sceneKey);
+    const next = Math.max(
+        ELSI_SCENE_LEVEL_MIN_DB,
+        Math.min(ELSI_SCENE_LEVEL_MAX_DB, before + deltaDb)
+    );
+    sceneLevelDb[sceneKey] = next;
+    setSceneVoiceGain(sceneKey, getSceneMixGain(sceneKey));
+    updateSceneUi();
+    updateStatus(`${ELSI_SCENES[sceneKey].label}: ${formatSignedDb(next)}`);
+}
+
+function formatSignedDb(value) {
+    const rounded = Math.round(value);
+    return `${rounded > 0 ? "+" : ""}${rounded} dB`;
+}
+
+function stopPatternEngine(sceneKey = null) {
+    if (sceneKey) {
+        if (patternTimers[sceneKey]) window.clearTimeout(patternTimers[sceneKey]);
+        delete patternTimers[sceneKey];
+        return;
+    }
+    Object.values(patternTimers).forEach(timer => window.clearTimeout(timer));
+    patternTimers = {};
+}
+
+function stopSceneFade(sceneKey) {
+    if (sceneFadeTimers[sceneKey]) window.clearInterval(sceneFadeTimers[sceneKey]);
+    delete sceneFadeTimers[sceneKey];
+}
+
+function setSceneVoiceGain(sceneKey, gain) {
+    const ids = sceneVoiceIds[sceneKey] || {};
+    const bases = sceneBaseVolumes[sceneKey] || {};
+    Object.entries(ids).forEach(([name, id]) => {
+        const base = bases[name];
+        if (typeof base !== "number") return;
+        window.velvetNoiseApi.updateVoiceParam(id, "volume", base * gain * getSceneLevelGain(sceneKey));
+    });
+    setSceneToneGain(sceneKey, gain);
+}
+
+function setSceneToneGain(sceneKey, gain) {
+    const toneScene = sceneToneNodes[sceneKey];
+    if (!toneScene || !audioEngine.ctx) return;
+
+    const now = audioEngine.ctx.currentTime;
+    const levelGain = getSceneLevelGain(sceneKey);
+    toneScene.items.forEach(item => {
+        const target = item.baseGain * gain * levelGain * (toneScene.loadGain || 1);
+        item.outputGain.gain.cancelScheduledValues(now);
+        item.outputGain.gain.setTargetAtTime(Math.max(0, target), now, 0.08);
+    });
+}
+
+function ensureSceneToneVoices(sceneKey) {
+    const scene = ELSI_SCENES[sceneKey];
+    if (!scene || !Array.isArray(scene.toneVoices) || sceneToneNodes[sceneKey]) return;
+    if (!audioEngine.ctx || !audioEngine.masterGain) return;
+
+    const ctx = audioEngine.ctx;
+    const items = scene.toneVoices.map(tone => {
+        const osc = ctx.createOscillator();
+        const outputGain = ctx.createGain();
+        const tremolo = ctx.createOscillator();
+        const tremoloGain = ctx.createGain();
+
+        osc.type = tone.type || "sine";
+        osc.frequency.value = tone.frequency;
+        osc.detune.value = tone.detuneCents || 0;
+
+        outputGain.gain.value = 0;
+        tremolo.type = "sine";
+        tremolo.frequency.value = tone.tremoloHz || 37;
+        tremoloGain.gain.value = tone.tremoloDepth || 0;
+
+        // Tremolo is intentionally small. It suggests fan-blade/commutator flutter
+        // without turning the vacuum scene into a harsh AM synth tone.
+        tremolo.connect(tremoloGain);
+        tremoloGain.connect(outputGain.gain);
+        osc.connect(outputGain);
+        outputGain.connect(audioEngine.masterGain);
+
+        osc.start();
+        tremolo.start();
+
+        return { osc, outputGain, tremolo, tremoloGain, baseGain: tone.gain || 0 };
+    });
+
+    sceneToneNodes[sceneKey] = { items, loadGain: 1 };
+    setSceneToneGain(sceneKey, getSceneMixGain(sceneKey));
+}
+
+function stopSceneToneVoices(sceneKey) {
+    const toneScene = sceneToneNodes[sceneKey];
+    if (!toneScene) return;
+
+    toneScene.items.forEach(item => {
+        try { item.osc.stop(); } catch (error) {}
+        try { item.tremolo.stop(); } catch (error) {}
+        try { item.osc.disconnect(); } catch (error) {}
+        try { item.tremolo.disconnect(); } catch (error) {}
+        try { item.tremoloGain.disconnect(); } catch (error) {}
+        try { item.outputGain.disconnect(); } catch (error) {}
+    });
+    delete sceneToneNodes[sceneKey];
+}
+
+function stopAllSceneToneVoices() {
+    Object.keys(sceneToneNodes).forEach(stopSceneToneVoices);
+}
+
+function fadeSceneGain(sceneKey, targetGain, seconds = ELSI_SCENE_CROSSFADE_SEC, afterDone = null) {
+    stopSceneFade(sceneKey);
+    const startGain = getSceneMixGain(sceneKey);
+    const startTime = performance.now();
+    const durationMs = Math.max(1, seconds * 1000);
+
+    // JS-side ramp is sufficient here because these are slow scene crossfades.
+    // Later this should move to dedicated scene bus GainNodes.
+    sceneFadeTimers[sceneKey] = window.setInterval(() => {
+        const t = Math.min(1, (performance.now() - startTime) / durationMs);
+        const eased = t * t * (3 - 2 * t);
+        const gain = startGain + (targetGain - startGain) * eased;
+        sceneCurrentGains[sceneKey] = gain;
+        setSceneVoiceGain(sceneKey, gain);
+
+        if (t >= 1) {
+            stopSceneFade(sceneKey);
+            sceneCurrentGains[sceneKey] = targetGain;
+            setSceneVoiceGain(sceneKey, targetGain);
+            if (afterDone) afterDone();
+        }
+    }, 40);
+}
+
+function updateGlobalReverbFromPrimaryScene() {
+    const scene = ELSI_SCENES[currentSceneKey] || ELSI_SCENES.sleep;
+    window.velvetNoiseApi.setReverbMix(scene.reverbWet);
+    window.velvetNoiseApi.setReverbDecay(scene.reverbDecay);
+}
+
+function buildSceneMixer() {
+    Object.entries(ELSI_SCENES).forEach(([sceneKey, scene]) => {
+        sceneVoiceIds[sceneKey] = {};
+        sceneBaseVolumes[sceneKey] = {};
+        sceneCurrentGains[sceneKey] = activeSceneKeys.has(sceneKey) ? 1 : 0;
+        sceneLevelDb[sceneKey] = sceneLevelDb[sceneKey] || 0;
+
+        scene.voices.forEach(voiceConfig => {
+            const baseVolume = voiceConfig.params.volume;
+            const config = JSON.parse(JSON.stringify(voiceConfig));
+            config.params.volume = activeSceneKeys.has(sceneKey) && !config.isMuted ? baseVolume * getSceneLevelGain(sceneKey) : 0;
+            const id = window.velvetNoiseApi.addVoice(config);
+            sceneVoiceIds[sceneKey][voiceConfig.customName] = id;
+            if (!voiceConfig.isMuted) sceneBaseVolumes[sceneKey][voiceConfig.customName] = baseVolume;
+        });
+    });
+    updateGlobalReverbFromPrimaryScene();
+    applyCurrentVolume();
+}
+
+function schedulePatternStep(sceneKey) {
+    stopPatternEngine(sceneKey);
+    const scene = ELSI_SCENES[sceneKey];
+    if (!scene || !isElsiRunning || !activeSceneKeys.has(sceneKey)) return;
+
+    const runNext = async () => {
+        if (!isElsiRunning || !activeSceneKeys.has(sceneKey)) return;
+        const ids = sceneVoiceIds[sceneKey] || {};
+        let delayMs = 4000 + Math.random() * 3000;
+
+        if (scene.pattern === "walk") {
+            const stepIndex = walkStepIndexByScene[sceneKey] || 0;
+            const left = stepIndex % 2 === 0;
+            const id = left ? ids["walk.leftFoot"] : ids["walk.rightFoot"];
+            if (id) {
+                await window.velvetNoiseApi.triggerVoice(id, {
+                    attack: 0.018 + Math.random() * 0.012,
+                    hold: 0.030 + Math.random() * 0.030,
+                    release: 0.520 + Math.random() * 0.180,
+                    peak: (0.42 + Math.random() * 0.10) * Math.max(0.05, getSceneMixGain(sceneKey))
+                });
+            }
+            walkStepIndexByScene[sceneKey] = stepIndex + 1;
+            delayMs = 690 + Math.random() * 180;
+        } else if (scene.pattern === "sparseDrops") {
+            const id = ids["rain.drops"];
+            if (id && Math.random() < 0.72) {
+                await window.velvetNoiseApi.triggerVoice(id, {
+                    attack: 0.010,
+                    hold: 0.020 + Math.random() * 0.030,
+                    release: 0.420 + Math.random() * 0.300,
+                    peak: (0.24 + Math.random() * 0.12) * Math.max(0.05, getSceneMixGain(sceneKey))
+                });
+            }
+            delayMs = 900 + Math.random() * 1900;
+        } else if (scene.pattern === "breath") {
+            Object.values(ids).forEach(id => {
+                if (Math.random() < 0.7) {
+                    const drift = 0.22 + Math.random() * 0.22;
+                    window.velvetNoiseApi.updateVoiceParam(id, "textureDrift", drift);
+                }
+            });
+            delayMs = 7000 + Math.random() * 7000;
+        } else if (scene.pattern === "slowEvents") {
+            const names = Object.keys(sceneBaseVolumes[sceneKey] || {});
+            const name = names[Math.floor(Math.random() * names.length)];
+            const id = ids[name];
+            if (id) {
+                const base = sceneBaseVolumes[sceneKey][name];
+                const mod = 0.85 + Math.random() * 0.30;
+                window.velvetNoiseApi.updateVoiceParam(id, "volume", base * getSceneMixGain(sceneKey) * mod);
+            }
+            delayMs = 9000 + Math.random() * 9000;
+        } else if (scene.pattern === "vacuumLoad") {
+            const toneScene = sceneToneNodes[sceneKey];
+            if (toneScene) {
+                toneScene.loadGain = 0.72 + Math.random() * 0.58;
+                setSceneToneGain(sceneKey, getSceneMixGain(sceneKey));
+            }
+
+            Object.entries(sceneBaseVolumes[sceneKey] || {}).forEach(([name, base]) => {
+                const id = ids[name];
+                if (!id) return;
+                const mod = name.includes("air") || name.includes("Hiss")
+                    ? 0.72 + Math.random() * 0.62
+                    : 0.78 + Math.random() * 0.46;
+                window.velvetNoiseApi.updateVoiceParam(id, "volume", base * getSceneMixGain(sceneKey) * getSceneLevelGain(sceneKey) * mod);
+            });
+            delayMs = 650 + Math.random() * 1700;
+        }
+
+        patternTimers[sceneKey] = window.setTimeout(runNext, delayMs);
+    };
+
+    patternTimers[sceneKey] = window.setTimeout(runNext, 600);
+}
+
+async function toggleScene(sceneKey) {
+    const scene = ELSI_SCENES[sceneKey];
+    if (!scene) return;
+
+    const wasActive = activeSceneKeys.has(sceneKey);
+    currentSceneKey = sceneKey;
+    updateGlobalReverbFromPrimaryScene();
+
+    if (wasActive && activeSceneKeys.size > 1) {
+        activeSceneKeys.delete(sceneKey);
+        stopPatternEngine(sceneKey);
+        fadeSceneGain(sceneKey, 0, ELSI_SCENE_CROSSFADE_SEC);
+        const next = getActiveSceneList()[0];
+        if (next) currentSceneKey = next;
+        updateStatus(`Removed: ${scene.label}`);
+    } else if (!wasActive) {
+        activeSceneKeys.add(sceneKey);
+        sceneCurrentGains[sceneKey] = sceneCurrentGains[sceneKey] || 0;
+        if (isElsiRunning) ensureSceneToneVoices(sceneKey);
+        fadeSceneGain(sceneKey, 1, ELSI_SCENE_CROSSFADE_SEC);
+        if (isElsiRunning) schedulePatternStep(sceneKey);
+        updateStatus(`Added: ${scene.label}`);
+    } else {
+        updateStatus(`Scene kept: ${scene.label}`);
+    }
+
+    applyCurrentVolume();
+    updateSceneUi();
+}
+
+async function startElsi() {
+    if (pendingStopTimer) {
+        window.clearTimeout(pendingStopTimer);
+        pendingStopTimer = null;
+    }
+
+    isElsiRunning = true;
+
+    window.velvetNoiseApi.setMasterVolume(0, 0);
+    await window.velvetNoiseApi.start();
+    getActiveSceneList().forEach(sceneKey => ensureSceneToneVoices(sceneKey));
+    applyCurrentVolume();
+
+    getActiveSceneList().forEach(sceneKey => schedulePatternStep(sceneKey));
+    updateStatus(`Playing: ${getActiveSceneList().map(key => ELSI_SCENES[key].label).join(" + ")}`);
+    updatePlayButtons();
+}
+
+function stopElsi() {
+    isElsiRunning = false;
+    stopPatternEngine();
+
+    window.velvetNoiseApi.setMasterVolume(0, ELSI_STOP_FADE_SEC);
+    if (pendingStopTimer) window.clearTimeout(pendingStopTimer);
+    pendingStopTimer = window.setTimeout(() => {
+        pendingStopTimer = null;
+        stopAllSceneToneVoices();
+        window.velvetNoiseApi.stop();
+    }, ELSI_STOP_FADE_SEC * 1000 + 120);
+
+    updateStatus("Stopping…");
+    updatePlayButtons();
+}
+
+function updateStatus(text) {
+    const el = document.getElementById("elsi-status");
+    if (el) el.textContent = text;
+}
+
+function updatePlayButtons() {
+    const startButton = document.getElementById("start-button");
+    const stopButton = document.getElementById("stop-button");
+    if (startButton) startButton.disabled = isElsiRunning;
+    if (stopButton) stopButton.disabled = !isElsiRunning;
+}
+
+function updateSceneUi() {
+    document.querySelectorAll(".scene-button").forEach(button => {
+        button.classList.toggle("active", activeSceneKeys.has(button.dataset.scene));
+    });
+    document.querySelectorAll(".scene-level").forEach(label => {
+        label.textContent = formatSignedDb(getSceneLevelDb(label.dataset.scene));
+    });
+    const activeLabels = getActiveSceneList().map(key => ELSI_SCENES[key].label);
+    const scene = ELSI_SCENES[currentSceneKey] || ELSI_SCENES.sleep;
+    const title = document.getElementById("scene-title");
+    const desc = document.getElementById("scene-description");
+    if (title) title.textContent = activeLabels.length ? activeLabels.join(" + ") : scene.label;
+    if (desc) desc.textContent = activeLabels.length > 1 ? "Scene mixer active. Tap a highlighted scene to fade it out." : scene.description;
+    updateVolumeUi();
+}
+
+function updateVolumeUi() {
+    const currentDb = getCurrentVolumeDb();
+    document.querySelectorAll(".volume-button").forEach(button => {
+        const mode = button.dataset.volumeMode;
+        const def = ELSI_VOLUME_MODES[mode];
+        if (!def) return;
+
+        button.classList.toggle("active", mode === volumeMode);
+        if (mode === volumeMode) {
+            const sign = currentDb > 0 ? "+" : "";
+            button.textContent = `${def.label} ${sign}${currentDb.toFixed(0)} dB`;
+        } else {
+            const sign = def.baseDb > 0 ? "+" : "";
+            button.textContent = `${def.label} ${sign}${def.baseDb} dB`;
+        }
+    });
+}
+
+function animateButton(button, direction) {
+    if (!button) return;
+    const className = direction === "minus" ? "button-shrink" : "button-grow";
+    button.classList.remove("button-grow", "button-shrink");
+
+    // Force a reflow so repeated clicks restart the same animation.
+    void button.offsetWidth;
+    button.classList.add(className);
+}
+
+function buildSceneButtons() {
+    const grid = document.getElementById("scene-grid");
+    if (!grid) return;
+    grid.innerHTML = Object.entries(ELSI_SCENES).map(([key, scene]) => `
+        <div class="scene-button" data-scene="${key}">
+            <div class="scene-button-title">
+                <span>${scene.label}</span>
+                <strong class="scene-level" data-scene="${key}">0 dB</strong>
+            </div>
+            <small>${scene.description}</small>
+            <div class="scene-level-controls" aria-label="${scene.label} volume">
+                <button class="scene-level-button" data-scene-level="down" type="button" aria-label="${scene.label} quieter">−</button>
+                <button class="scene-level-button" data-scene-level="up" type="button" aria-label="${scene.label} louder">+</button>
+            </div>
+        </div>
+    `).join("");
+
+    grid.querySelectorAll(".scene-button").forEach(card => {
+        card.addEventListener("click", event => {
+            const levelButton = event.target.closest(".scene-level-button");
+            if (levelButton) return;
+            toggleScene(card.dataset.scene);
+        });
+    });
+
+    grid.querySelectorAll(".scene-level-button").forEach(button => {
+        button.addEventListener("click", event => {
+            event.stopPropagation();
+            const card = button.closest(".scene-button");
+            if (!card) return;
+            const direction = button.dataset.sceneLevel === "up" ? 1 : -1;
+            changeSceneLevel(card.dataset.scene, direction * ELSI_SCENE_LEVEL_STEP_DB);
+            animateButton(button, direction > 0 ? "plus" : "minus");
+        });
+    });
+}
+
+function initElsiApp() {
+    buildSceneButtons();
+    const startButton = document.getElementById("start-button");
+    const stopButton = document.getElementById("stop-button");
+
+    startButton.addEventListener("click", () => {
+        animateButton(startButton, "plus");
+        startElsi();
+    });
+    stopButton.addEventListener("click", () => {
+        animateButton(stopButton, "minus");
+        stopElsi();
+    });
+
+    document.querySelectorAll(".volume-button").forEach(button => {
+        button.addEventListener("click", () => {
+            const beforeDb = getCurrentVolumeDb();
+            setVolumeMode(button.dataset.volumeMode);
+            const afterDb = getCurrentVolumeDb();
+            animateButton(button, afterDb >= beforeDb ? "plus" : "minus");
+        });
+    });
+    buildSceneMixer();
+    updateSceneUi();
+    updateStatus("Ready: Sleep");
+    updatePlayButtons();
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initElsiApp);
+} else {
+    initElsiApp();
+}
+
+document.addEventListener("click", async function() {
+    await audioEngine.init();
+    await audioEngine.resume();
+}, { once: true });
+
+</script>
+</body>
+</html>
