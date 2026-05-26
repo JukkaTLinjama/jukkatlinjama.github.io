@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Elsi Vacuum App v0.2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #171715;
+      --panel: #22211f;
+      --panel-soft: #2d2a25;
+      --text: #efe8da;
+      --muted: #b8ad9b;
+      --line: rgba(255,255,255,0.11);
+      --accent: #d8b66a;
+      --accent-soft: rgba(216,182,106,0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(216,182,106,0.11), transparent 34rem),
+        linear-gradient(180deg, #211f1c 0%, var(--bg) 60%, #11110f 100%);
+      color: var(--text);
+    }
+
+    .app-shell {
+      width: min(760px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 24px 16px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    header { text-align: center; padding: 10px 0 2px; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(38px, 10vw, 64px);
+      letter-spacing: 0.04em;
+      font-weight: 650;
+    }
+
+    .version { margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+    .card {
+      background: rgba(34,33,31,0.88);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 22px 70px rgba(0,0,0,0.28);
+      padding: 18px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+      text-align: center;
+    }
+
+    #scene-title {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 650;
+    }
+
+    #scene-description {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .transport {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .variant-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    button {
+      min-height: 56px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #353128;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: #5a4a2b;
+      border-color: rgba(216,182,106,0.48);
+    }
+
+    button:disabled {
+      opacity: 0.38;
+      cursor: default;
+    }
+
+    .variant-button {
+      min-height: 44px;
+      border-radius: 15px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .variant-button.active {
+      color: var(--text);
+      background: var(--accent-soft);
+      border-color: rgba(216,182,106,0.55);
+    }
+
+    .vacuum-pad {
+      position: relative;
+      min-height: 220px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(216,182,106,0.28), transparent 9rem),
+        linear-gradient(135deg, rgba(255,255,255,0.045), rgba(0,0,0,0.10));
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .vacuum-pad::before {
+      content: "";
+      position: absolute;
+      inset: 16px;
+      border: 1px dashed rgba(255,255,255,0.10);
+      border-radius: 18px;
+      pointer-events: none;
+    }
+
+    .pad-text {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      line-height: 1.35;
+      pointer-events: none;
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .meter {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(0,0,0,0.14);
+    }
+
+    .meter small { display: block; color: var(--muted); font-size: 12px; }
+
+    .meter strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 19px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    label.control {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.035);
+    }
+
+    label.control span:first-child { color: var(--text); font-size: 14px; }
+
+    label.control output {
+      color: var(--muted);
+      min-width: 4em;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      grid-column: 1 / -1;
+      width: 100%;
+    }
+
+    .status {
+      min-height: 22px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+    }
+
+    pre {
+      margin: 0;
+      max-height: 260px;
+      overflow: auto;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #0c0c0b;
+      color: #d6d0c4;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    @media (max-width: 560px) {
+      .app-shell { padding: 18px 12px 28px; }
+      .readout { grid-template-columns: 1fr; }
+      .variant-row { grid-template-columns: repeat(2, 1fr); }
+      .vacuum-pad { min-height: 190px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header>
+      <h1>Elsi</h1>
+      <div class="version">v0.2 · vacuum engine adapter test · uses assets/vacuum-loop.wav</div>
+    </header>
+
+    <section class="card hero">
+      <h2 id="scene-title">Vacuum</h2>
+      <p id="scene-description">Hard floor: brighter high velvet, moderate harmonic texture.</p>
+
+      <div class="transport">
+        <button id="startBtn" class="primary">Start</button>
+        <button id="stopBtn">Stop</button>
+      </div>
+
+      <div class="variant-row" aria-label="Floor variants">
+        <button class="variant-button active" data-floor-profile="hardFloor">Hard</button>
+        <button class="variant-button" data-floor-profile="carpet">Carpet</button>
+        <button class="variant-button" data-floor-profile="dusty">Dusty</button>
+        <button class="variant-button" data-floor-profile="edge">Edge</button>
+      </div>
+
+      <div id="vacuumPad" class="vacuum-pad" aria-label="Vacuum interaction area">
+        <div class="pad-text">Drag here<br>movement → load and turbulence<br>vertical position → suction</div>
+      </div>
+
+      <div class="readout">
+        <div class="meter"><small>Suction</small><strong id="suctionReadout">0.55</strong></div>
+        <div class="meter"><small>Motion</small><strong id="motionReadout">0.00</strong></div>
+        <div class="meter"><small>Dirt</small><strong id="dirtReadout">0.35</strong></div>
+      </div>
+
+      <div id="status" class="status">Ready</div>
+    </section>
+
+    <section class="card controls" aria-label="Elsi behavior controls">
+      <label class="control">
+        <span>Suction</span>
+        <output id="suction01Out">0.55</output>
+        <input id="suction01" type="range" min="0" max="1" step="0.01" value="0.55">
+      </label>
+
+      <label class="control">
+        <span>Dirt amount</span>
+        <output id="dirtiness01Out">0.35</output>
+        <input id="dirtiness01" type="range" min="0" max="1" step="0.01" value="0.35">
+      </label>
+
+      <label class="control">
+        <span>Floor roughness</span>
+        <output id="floorRoughness01Out">0.45</output>
+        <input id="floorRoughness01" type="range" min="0" max="1" step="0.01" value="0.45">
+      </label>
+
+      <label class="control">
+        <span>Master volume</span>
+        <output id="masterVolume01Out">0.70</output>
+        <input id="masterVolume01" type="range" min="0" max="1" step="0.01" value="0.70">
+      </label>
+    </section>
+
+    <section class="card">
+      <pre id="debugView">window.vacuumSampleLabApi</pre>
+    </section>
+
+    <p class="note">This file intentionally keeps everything in one HTML file. The Lab editor, recording tools, export tools and period tools are not included.</p>
+  </main>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const VERSION = "elsi-vacuum-app-v0.2";
+    const DEFAULT_SAMPLE_URL = "assets/vacuum-loop.wav";
+    const LOAD_LFO_MIN_PERIOD_SEC = 3;
+    const LOAD_LFO_MAX_PERIOD_SEC = 8;
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function clamp01(value) {
+      return clamp(Number(value) || 0, 0, 1);
+    }
+
+    function clampSigned01(value) {
+      return clamp(Number(value) || 0, -1, 1);
+    }
+
+    function dbToGain(db) {
+      return Math.pow(10, db / 20);
+    }
+
+    function setAudioParamTarget(param, value, now, rampSeconds) {
+      param.cancelScheduledValues(now);
+      param.setTargetAtTime(value, now, rampSeconds);
+    }
+
+    function format01(value) {
+      return clamp01(value).toFixed(2);
+    }
+
+    const engine = {
+      audioCtx: null,
+      masterGain: null,
+      motorGain: null,
+      airGain: null,
+      harmonicNoiseGain: null,
+      velvetLowGain: null,
+      velvetHighGain: null,
+      motorSource: null,
+      airSourceA: null,
+      airSourceB: null,
+      harmonicNoiseSource: null,
+      velvetLowSource: null,
+      velvetHighSource: null,
+      sampleBuffer: null,
+      isLoadingSample: false,
+      isRunning: false,
+      loadLfoTimer: null,
+      loadLfo: {
+        phase: 0,
+        value: 0,
+        effectiveLoad: 0,
+        currentPeriodSec: LOAD_LFO_MIN_PERIOD_SEC,
+        lastTimeSec: null
+      },
+      controls: {
+        load01: 0,
+        loadLfoDepth01: 0.04,
+        motorVolume01: 0.40,
+        airVolume01: 0.65,
+        velvetLow01: 0.70,
+        velvetHigh01: 0.60,
+        harmonicNoise01: 0.75,
+        masterVolume01: 0.70
+      }
+    };
+
+    const FLOOR_PROFILES = {
+      hardFloor: {
+        label: "Hard",
+        air: 1.00,
+        velvetLow: 0.70,
+        velvetHigh: 1.15,
+        harmonic: 0.95,
+        load: 1.00,
+        description: "Hard floor: brighter high velvet, moderate harmonic texture."
+      },
+      carpet: {
+        label: "Carpet",
+        air: 0.78,
+        velvetLow: 1.25,
+        velvetHigh: 0.62,
+        harmonic: 0.62,
+        load: 1.10,
+        description: "Carpet: more low drag, softer high texture, less tonal roughness."
+      },
+      dusty: {
+        label: "Dusty",
+        air: 1.18,
+        velvetLow: 1.05,
+        velvetHigh: 1.35,
+        harmonic: 1.25,
+        load: 1.12,
+        description: "Dusty: stronger air and particle-like high roughness."
+      },
+      edge: {
+        label: "Edge",
+        air: 1.30,
+        velvetLow: 0.86,
+        velvetHigh: 1.55,
+        harmonic: 1.42,
+        load: 1.18,
+        description: "Edge: more unstable air, brighter turbulence and resonance."
+      }
+    };
+
+    const elsiState = {
+      suction01: 0.55,
+      motion01: 0,
+      dirtiness01: 0.35,
+      floorRoughness01: 0.45,
+      masterVolume01: 0.70,
+      floorProfile: "hardFloor",
+      lastPointerX: null,
+      lastPointerY: null,
+      lastPointerTime: null,
+      pointerActive: false
+    };
+
+    const ui = {
+      startBtn: document.getElementById("startBtn"),
+      stopBtn: document.getElementById("stopBtn"),
+      pad: document.getElementById("vacuumPad"),
+      debugView: document.getElementById("debugView"),
+      suction01: document.getElementById("suction01"),
+      dirtiness01: document.getElementById("dirtiness01"),
+      floorRoughness01: document.getElementById("floorRoughness01"),
+      masterVolume01: document.getElementById("masterVolume01")
+    };
+
+    function setStatus(message) {
+      const el = document.getElementById("status");
+      if (el) el.textContent = message;
+    }
+
+    function createAudioContextIfNeeded() {
+      if (!engine.audioCtx) {
+        engine.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        engine.masterGain = engine.audioCtx.createGain();
+        engine.motorGain = engine.audioCtx.createGain();
+        engine.airGain = engine.audioCtx.createGain();
+        engine.harmonicNoiseGain = engine.audioCtx.createGain();
+        engine.velvetLowGain = engine.audioCtx.createGain();
+        engine.velvetHighGain = engine.audioCtx.createGain();
+
+        engine.motorGain.connect(engine.masterGain);
+        engine.airGain.connect(engine.masterGain);
+        engine.harmonicNoiseGain.connect(engine.masterGain);
+        engine.velvetLowGain.connect(engine.masterGain);
+        engine.velvetHighGain.connect(engine.masterGain);
+        engine.masterGain.connect(engine.audioCtx.destination);
+
+        engine.masterGain.gain.value = 0;
+        engine.motorGain.gain.value = 0;
+        engine.airGain.gain.value = 0;
+        engine.harmonicNoiseGain.gain.value = 0;
+        engine.velvetLowGain.gain.value = 0;
+        engine.velvetHighGain.gain.value = 0;
+      }
+      return engine.audioCtx;
+    }
+
+    async function decodeArrayBuffer(arrayBuffer) {
+      const audioCtx = createAudioContextIfNeeded();
+      return await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+    }
+
+    async function loadDefaultSample() {
+      if (engine.sampleBuffer || engine.isLoadingSample) return engine.sampleBuffer;
+
+      engine.isLoadingSample = true;
+      try {
+        setStatus(`Loading ${DEFAULT_SAMPLE_URL}...`);
+        const response = await fetch(DEFAULT_SAMPLE_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        engine.sampleBuffer = await decodeArrayBuffer(arrayBuffer);
+        setStatus("Sample loaded. Ready.");
+        updateDebugView();
+        return engine.sampleBuffer;
+      } catch (err) {
+        console.error(err);
+        setStatus("Could not load assets/vacuum-loop.wav.");
+        return null;
+      } finally {
+        engine.isLoadingSample = false;
+      }
+    }
+
+    function createNoiseBuffer(audioCtx, seconds, highpassHint) {
+      const length = Math.max(1, Math.floor(audioCtx.sampleRate * seconds));
+      const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+
+      let previous = 0;
+      for (let i = 0; i < length; i++) {
+        const white = Math.random() * 2 - 1;
+        previous = previous * 0.92 + white * 0.08;
+        data[i] = highpassHint
+          ? ((white - previous) * 0.03 + previous * 0.32)
+          : previous * 0.50;
+      }
+      return buffer;
+    }
+
+    function createVelvetNoiseBuffer(audioCtx, seconds, impulsesPerSecond, tone) {
+      const length = Math.max(1, Math.floor(audioCtx.sampleRate * seconds));
+      const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      const impulseCount = Math.max(1, Math.floor(seconds * impulsesPerSecond));
+
+      for (let n = 0; n < impulseCount; n++) {
+        const index = Math.floor(Math.random() * length);
+        const sign = Math.random() < 0.5 ? -1 : 1;
+
+        if (tone === "low") {
+          for (let k = 0; k < 220 && index + k < length; k++) {
+            const t = k / 219;
+            const env = Math.sin(t * Math.PI) * Math.exp(-k / 110);
+            data[index + k] += sign * env * 0.34;
+          }
+        } else {
+          for (let k = 0; k < 110 && index + k < length; k++) {
+            const t = k / 109;
+            const env = Math.sin(t * Math.PI) * Math.exp(-k / 55);
+            data[index + k] += sign * env * 0.20;
+          }
+        }
+      }
+
+      let prev = 0;
+      for (let i = 0; i < length; i++) {
+        prev = prev * 0.88 + data[i] * 0.12;
+        data[i] = prev;
+      }
+
+      let sumSquares = 0;
+      for (let i = 0; i < length; i++) sumSquares += data[i] * data[i];
+
+      const rms = Math.sqrt(sumSquares / Math.max(1, length));
+      const targetRms = tone === "low" ? 0.10 : 0.07;
+      if (rms > 1e-9) {
+        const scale = targetRms / rms;
+        for (let i = 0; i < length; i++) data[i] = clamp(data[i] * scale, -1, 1);
+      }
+      return buffer;
+    }
+
+    function createLoopingBufferSource(buffer, playbackRate = 1) {
+      const source = engine.audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+
+      // The whole supplied sample is used. There is no runtime crossfade/overlap here.
+      // If the file needs a seamless loop, export an already crossfaded vacuum-loop.wav from the Lab.
+      source.loopStart = 0;
+      source.loopEnd = buffer.duration;
+
+      source.playbackRate.value = playbackRate;
+      return source;
+    }
+
+    function stopSource(source) {
+      if (!source) return;
+      try { source.stop(); } catch (err) {}
+      try { source.disconnect(); } catch (err) {}
+    }
+
+    function refreshEffectiveLoadFromCurrentLfo() {
+      engine.loadLfo.effectiveLoad = clampSigned01(
+        engine.controls.load01 + engine.controls.loadLfoDepth01 * engine.loadLfo.value
+      );
+      return engine.loadLfo.effectiveLoad;
+    }
+
+    function updateLoadLfoState(nowSec) {
+      const lfo = engine.loadLfo;
+
+      if (lfo.lastTimeSec === null) {
+        lfo.lastTimeSec = nowSec;
+        refreshEffectiveLoadFromCurrentLfo();
+        return;
+      }
+
+      const dt = Math.max(0, Math.min(0.25, nowSec - lfo.lastTimeSec));
+      lfo.lastTimeSec = nowSec;
+
+      const periodMod01 = 0.5 + 0.5 * Math.sin(nowSec * 0.13);
+      lfo.currentPeriodSec = LOAD_LFO_MIN_PERIOD_SEC +
+        periodMod01 * (LOAD_LFO_MAX_PERIOD_SEC - LOAD_LFO_MIN_PERIOD_SEC);
+
+      lfo.phase = (lfo.phase + dt / Math.max(0.001, lfo.currentPeriodSec)) % 1;
+      lfo.value = Math.sin(lfo.phase * Math.PI * 2);
+      refreshEffectiveLoadFromCurrentLfo();
+    }
+
+    function getLoadForMapping() {
+      return refreshEffectiveLoadFromCurrentLfo();
+    }
+
+    function computeMappedControls() {
+      const load = getLoadForMapping();
+      const loadUp = Math.max(0, load);
+      const loadDown = Math.max(0, -load);
+
+      const playbackRate = 1.0 + load * 0.50;
+      const motorLoadGain = dbToGain(loadUp * 3.0);
+      const airLoadGain = dbToGain(-12.0 + loadUp * -6.0 + loadDown * -2.0);
+      const harmonicLoadGain = dbToGain(-4 + loadUp * 8 - loadDown * 2);
+      const velvetLowLoadGain = dbToGain(-4 - loadUp * 1 + loadDown * 1);
+      const velvetHighLoadGain = dbToGain(-7 + loadUp * 4 - loadDown * 2);
+
+      return {
+        playbackRate,
+        motorGain: engine.controls.motorVolume01 * motorLoadGain,
+        airGain: engine.controls.airVolume01 * airLoadGain,
+        harmonicNoiseGain: engine.controls.harmonicNoise01 * harmonicLoadGain,
+        velvetLowGain: engine.controls.velvetLow01 * velvetLowLoadGain,
+        velvetHighGain: engine.controls.velvetHigh01 * velvetHighLoadGain,
+        masterGain: engine.controls.masterVolume01
+      };
+    }
+
+    function applyControls(rampSeconds = 0.08) {
+      if (!engine.audioCtx || !engine.masterGain) return;
+
+      const now = engine.audioCtx.currentTime;
+      const mapped = computeMappedControls();
+
+      if (engine.motorSource) {
+        setAudioParamTarget(engine.motorSource.playbackRate, mapped.playbackRate, now, rampSeconds);
+      }
+
+      setAudioParamTarget(engine.motorGain.gain, mapped.motorGain, now, rampSeconds);
+      setAudioParamTarget(engine.airGain.gain, mapped.airGain, now, rampSeconds);
+      setAudioParamTarget(engine.harmonicNoiseGain.gain, mapped.harmonicNoiseGain, now, rampSeconds);
+      setAudioParamTarget(engine.velvetLowGain.gain, mapped.velvetLowGain, now, rampSeconds);
+      setAudioParamTarget(engine.velvetHighGain.gain, mapped.velvetHighGain, now, rampSeconds);
+      setAudioParamTarget(engine.masterGain.gain, mapped.masterGain, now, rampSeconds);
+
+      updateDebugView();
+    }
+
+    function startLoadLfoUpdater() {
+      if (engine.loadLfoTimer) return;
+      if (engine.audioCtx) engine.loadLfo.lastTimeSec = engine.audioCtx.currentTime;
+
+      engine.loadLfoTimer = setInterval(() => {
+        if (!engine.audioCtx || !engine.isRunning) return;
+        updateLoadLfoState(engine.audioCtx.currentTime);
+        applyControls(0.12);
+      }, 50);
+    }
+
+    function stopLoadLfoUpdater() {
+      clearInterval(engine.loadLfoTimer);
+      engine.loadLfoTimer = null;
+      engine.loadLfo.lastTimeSec = null;
+    }
+
+    async function startAudio() {
+      const audioCtx = createAudioContextIfNeeded();
+      await audioCtx.resume();
+      await loadDefaultSample();
+
+      if (!engine.sampleBuffer) {
+        setStatus("No sample. Check assets/vacuum-loop.wav.");
+        return false;
+      }
+
+      if (engine.isRunning) return true;
+
+      updateLoadLfoState(audioCtx.currentTime);
+      const mapped = computeMappedControls();
+
+      engine.motorSource = createLoopingBufferSource(engine.sampleBuffer, mapped.playbackRate);
+      engine.motorSource.connect(engine.motorGain);
+
+      engine.airSourceA = createLoopingBufferSource(createNoiseBuffer(audioCtx, 2.3, false), 1);
+      engine.airSourceB = createLoopingBufferSource(createNoiseBuffer(audioCtx, 3.1, true), 1);
+      engine.harmonicNoiseSource = createLoopingBufferSource(createNoiseBuffer(audioCtx, 1.7, true), 1);
+      engine.velvetLowSource = createLoopingBufferSource(createVelvetNoiseBuffer(audioCtx, 4.7, 1200, "low"), 1);
+      engine.velvetHighSource = createLoopingBufferSource(createVelvetNoiseBuffer(audioCtx, 3.9, 1800, "high"), 1);
+
+      engine.airSourceA.connect(engine.airGain);
+      engine.airSourceB.connect(engine.airGain);
+      engine.harmonicNoiseSource.connect(engine.harmonicNoiseGain);
+      engine.velvetLowSource.connect(engine.velvetLowGain);
+      engine.velvetHighSource.connect(engine.velvetHighGain);
+
+      const now = audioCtx.currentTime;
+      engine.masterGain.gain.cancelScheduledValues(now);
+      engine.masterGain.gain.setValueAtTime(0, now);
+
+      engine.motorSource.start(now);
+      engine.airSourceA.start(now);
+      engine.airSourceB.start(now);
+      engine.harmonicNoiseSource.start(now);
+      engine.velvetLowSource.start(now);
+      engine.velvetHighSource.start(now);
+
+      engine.isRunning = true;
+      applyControls(0.12);
+      startLoadLfoUpdater();
+      setStatus("Running");
+      updateTransportUi();
+      return true;
+    }
+
+    function stopAudio() {
+      if (!engine.audioCtx || !engine.isRunning) return false;
+
+      stopLoadLfoUpdater();
+      const now = engine.audioCtx.currentTime;
+      const stopAt = now + 0.18;
+
+      engine.masterGain.gain.cancelScheduledValues(now);
+      engine.masterGain.gain.setValueAtTime(engine.masterGain.gain.value, now);
+      engine.masterGain.gain.linearRampToValueAtTime(0.0001, stopAt);
+
+      const sources = [
+        engine.motorSource,
+        engine.airSourceA,
+        engine.airSourceB,
+        engine.harmonicNoiseSource,
+        engine.velvetLowSource,
+        engine.velvetHighSource
+      ];
+
+      setTimeout(() => {
+        sources.forEach(stopSource);
+        engine.motorSource = null;
+        engine.airSourceA = null;
+        engine.airSourceB = null;
+        engine.harmonicNoiseSource = null;
+        engine.velvetLowSource = null;
+        engine.velvetHighSource = null;
+        engine.isRunning = false;
+        setStatus("Stopped");
+        updateTransportUi();
+        updateDebugView();
+      }, 220);
+
+      return true;
+    }
+
+    function updateControl(params = {}) {
+      if (typeof params.loadSigned01 === "number") {
+        engine.controls.load01 = clampSigned01(params.loadSigned01);
+      } else if (typeof params.load01 === "number") {
+        engine.controls.load01 = clampSigned01(params.load01 * 2 - 1);
+      }
+
+      if (typeof params.loadLfoDepth01 === "number") engine.controls.loadLfoDepth01 = clamp(params.loadLfoDepth01, 0, 0.30);
+      if (typeof params.motorVolume01 === "number") engine.controls.motorVolume01 = clamp01(params.motorVolume01);
+      if (typeof params.airVolume01 === "number") engine.controls.airVolume01 = clamp01(params.airVolume01);
+      if (typeof params.velvetLow01 === "number") engine.controls.velvetLow01 = clamp01(params.velvetLow01);
+      if (typeof params.velvetHigh01 === "number") engine.controls.velvetHigh01 = clamp01(params.velvetHigh01);
+      if (typeof params.harmonicNoise01 === "number") engine.controls.harmonicNoise01 = clamp01(params.harmonicNoise01);
+      if (typeof params.masterVolume01 === "number") engine.controls.masterVolume01 = clamp01(params.masterVolume01);
+
+      refreshEffectiveLoadFromCurrentLfo();
+      applyControls(0.08);
+      return getState();
+    }
+
+    async function start() {
+      await startAudio();
+      return getState();
+    }
+
+    function stop() {
+      stopAudio();
+      return getState();
+    }
+
+    function getState() {
+      return {
+        version: VERSION,
+        isRunning: engine.isRunning,
+        sampleUrl: DEFAULT_SAMPLE_URL,
+        hasSample: Boolean(engine.sampleBuffer),
+        isLoadingSample: engine.isLoadingSample,
+        sampleInfo: engine.sampleBuffer ? {
+          durationSec: engine.sampleBuffer.duration,
+          sampleRate: engine.sampleBuffer.sampleRate,
+          channels: engine.sampleBuffer.numberOfChannels,
+          loopStartSec: 0,
+          loopEndSec: engine.sampleBuffer.duration,
+          runtimeOverlap: false
+        } : null,
+        controls: {
+          ...engine.controls,
+          loadSigned01: engine.controls.load01
+        },
+        loadLfo: { ...engine.loadLfo },
+        mapped: computeMappedControls(),
+        elsi: { ...elsiState }
+      };
+    }
+
+    window.vacuumSampleLabApi = Object.freeze({
+      updateControl,
+      start,
+      stop,
+      getState
+    });
+
+    function updateVacuumFromScene() {
+      const suction = clamp01(elsiState.suction01);
+      const motion = clamp01(elsiState.motion01);
+      const dirt = clamp01(elsiState.dirtiness01);
+      const rough = clamp01(elsiState.floorRoughness01);
+      const profile = FLOOR_PROFILES[elsiState.floorProfile] || FLOOR_PROFILES.hardFloor;
+
+      const loadSigned01 = clampSigned01((-0.10 + suction * 0.65 + motion * 0.25 + dirt * 0.12) * profile.load);
+      const loadLfoDepth01 = clamp(0.025 + suction * 0.045 + dirt * 0.035, 0, 0.18);
+
+      window.vacuumSampleLabApi.updateControl({
+        loadSigned01,
+        loadLfoDepth01,
+        motorVolume01: clamp01(0.34 + suction * 0.26),
+        airVolume01: clamp01((0.28 + suction * 0.34 + motion * 0.18) * profile.air),
+        velvetLow01: clamp01((0.26 + rough * 0.42 + motion * 0.18) * profile.velvetLow),
+        velvetHigh01: clamp01((0.18 + rough * 0.25 + motion * 0.34 + dirt * 0.12) * profile.velvetHigh),
+        harmonicNoise01: clamp01((0.18 + dirt * 0.58 + suction * 0.14) * profile.harmonic),
+        masterVolume01: elsiState.masterVolume01
+      });
+
+      updateElsiUiReadouts();
+    }
+
+    function decayMotion() {
+      if (elsiState.pointerActive) return;
+      elsiState.motion01 *= 0.92;
+      if (elsiState.motion01 < 0.002) elsiState.motion01 = 0;
+      updateVacuumFromScene();
+    }
+
+    function updateTransportUi() {
+      ui.startBtn.disabled = engine.isRunning;
+      ui.stopBtn.disabled = !engine.isRunning;
+    }
+
+    function updateElsiUiReadouts() {
+      const pairs = [
+        ["suction01", elsiState.suction01],
+        ["dirtiness01", elsiState.dirtiness01],
+        ["floorRoughness01", elsiState.floorRoughness01],
+        ["masterVolume01", elsiState.masterVolume01]
+      ];
+
+      for (const [key, value] of pairs) {
+        const input = document.getElementById(key);
+        const output = document.getElementById(`${key}Out`);
+        if (input && document.activeElement !== input) input.value = String(value);
+        if (output) output.value = format01(value);
+      }
+
+      document.getElementById("suctionReadout").textContent = format01(elsiState.suction01);
+      document.getElementById("motionReadout").textContent = format01(elsiState.motion01);
+      document.getElementById("dirtReadout").textContent = format01(elsiState.dirtiness01);
+
+      document.querySelectorAll(".variant-button").forEach(button => {
+        button.classList.toggle("active", button.dataset.floorProfile === elsiState.floorProfile);
+      });
+
+      const profile = FLOOR_PROFILES[elsiState.floorProfile] || FLOOR_PROFILES.hardFloor;
+      const description = document.getElementById("scene-description");
+      if (description) description.textContent = profile.description;
+
+      updateDebugView();
+    }
+
+    function updateDebugView() {
+      if (!ui.debugView) return;
+      ui.debugView.textContent = JSON.stringify(getState(), null, 2);
+    }
+
+    function handlePadPointer(event, isDownOrMove) {
+      const rect = ui.pad.getBoundingClientRect();
+      const x = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+      const y = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+      const now = performance.now();
+
+      ui.pad.style.setProperty("--x", `${x * 100}%`);
+      ui.pad.style.setProperty("--y", `${y * 100}%`);
+
+      elsiState.suction01 = clamp01(1 - y * 0.75);
+
+      if (elsiState.lastPointerX !== null && elsiState.lastPointerY !== null && elsiState.lastPointerTime !== null) {
+        const dx = x - elsiState.lastPointerX;
+        const dy = y - elsiState.lastPointerY;
+        const dt = Math.max(16, now - elsiState.lastPointerTime);
+        const speed = Math.sqrt(dx * dx + dy * dy) / dt * 1000;
+        const motionTarget = clamp01(speed * 1.7);
+        elsiState.motion01 = Math.max(elsiState.motion01 * 0.72, motionTarget);
+      }
+
+      elsiState.lastPointerX = x;
+      elsiState.lastPointerY = y;
+      elsiState.lastPointerTime = now;
+
+      if (isDownOrMove) updateVacuumFromScene();
+    }
+
+    function bindUi() {
+      ui.startBtn.addEventListener("click", async () => {
+        await window.vacuumSampleLabApi.start();
+        updateVacuumFromScene();
+      });
+
+      ui.stopBtn.addEventListener("click", () => {
+        window.vacuumSampleLabApi.stop();
+      });
+
+      ui.suction01.addEventListener("input", () => {
+        elsiState.suction01 = clamp01(ui.suction01.value);
+        updateVacuumFromScene();
+      });
+
+      ui.dirtiness01.addEventListener("input", () => {
+        elsiState.dirtiness01 = clamp01(ui.dirtiness01.value);
+        updateVacuumFromScene();
+      });
+
+      ui.floorRoughness01.addEventListener("input", () => {
+        elsiState.floorRoughness01 = clamp01(ui.floorRoughness01.value);
+        updateVacuumFromScene();
+      });
+
+      ui.masterVolume01.addEventListener("input", () => {
+        elsiState.masterVolume01 = clamp01(ui.masterVolume01.value);
+        updateVacuumFromScene();
+      });
+
+      document.querySelectorAll(".variant-button").forEach(button => {
+        button.addEventListener("click", () => {
+          const key = button.dataset.floorProfile;
+          if (!FLOOR_PROFILES[key]) return;
+          elsiState.floorProfile = key;
+          updateVacuumFromScene();
+        });
+      });
+
+      ui.pad.addEventListener("pointerdown", event => {
+        elsiState.pointerActive = true;
+        ui.pad.setPointerCapture(event.pointerId);
+        handlePadPointer(event, true);
+      });
+
+      ui.pad.addEventListener("pointermove", event => {
+        if (!elsiState.pointerActive) return;
+        handlePadPointer(event, true);
+      });
+
+      ui.pad.addEventListener("pointerup", event => {
+        elsiState.pointerActive = false;
+        elsiState.lastPointerX = null;
+        elsiState.lastPointerY = null;
+        elsiState.lastPointerTime = null;
+        try { ui.pad.releasePointerCapture(event.pointerId); } catch (err) {}
+      });
+
+      ui.pad.addEventListener("pointercancel", () => {
+        elsiState.pointerActive = false;
+        elsiState.lastPointerX = null;
+        elsiState.lastPointerY = null;
+        elsiState.lastPointerTime = null;
+      });
+    }
+
+    bindUi();
+    updateTransportUi();
+    updateVacuumFromScene();
+    setInterval(decayMotion, 80);
+
+    // Preload if the browser allows it. Playback still requires Start/user gesture.
+    loadDefaultSample();
+  })();
+  </script>
+</body>
+</html>
