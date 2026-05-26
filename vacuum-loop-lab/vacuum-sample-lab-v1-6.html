@@ -1,0 +1,1812 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Vacuum Sample Lab v1.6</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111318;
+      --panel: #1a1d24;
+      --panel2: #222632;
+      --text: #e8e8e8;
+      --muted: #9aa0aa;
+      --accent: #7fb3ff;
+      --warn: #ffbf69;
+      --border: #333846;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #202536 0, var(--bg) 45%, #090a0d 100%);
+      color: var(--text);
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.45;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .card { grid-column: span 3; }
+    .wideCard { grid-column: span 4; }
+    .halfCard { grid-column: span 6; }
+    .clipCard { grid-column: 1 / -1; }
+
+    @media (max-width: 980px) {
+      .card, .wideCard, .halfCard, .clipCard { grid-column: 1 / -1; }
+    }
+
+    section {
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+    }
+
+    .topNote { color: var(--muted); margin-bottom: 24px; line-height: 1.45; }
+    .inlineLink { border: 0; background: none; color: var(--accent); padding: 0; font: inherit; cursor: pointer; }
+    .compactPanel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .sectionHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .tinyButton { padding: 4px 7px; border-radius: 8px; font-size: 0.9rem; }
+
+    section h2 {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+      font-weight: 650;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    button, input[type="file"]::file-selector-button {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel2);
+      color: var(--text);
+      padding: 9px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover, input[type="file"]::file-selector-button:hover {
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      color: var(--muted);
+    }
+
+    label.control {
+      display: grid;
+      grid-template-columns: 120px 1fr 64px;
+      gap: 12px;
+      align-items: center;
+      margin: 12px 0;
+      color: var(--muted);
+    }
+
+    label.control.layerControl {
+      grid-template-columns: 120px 1fr 64px 100px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .rangeWrap {
+      position: relative;
+      width: 100%;
+    }
+
+    .rangeWrap input[type="range"] {
+      width: 100%;
+      display: block;
+    }
+
+    .actualMarker {
+      position: absolute;
+      top: -4px;
+      bottom: -4px;
+      width: 2px;
+      background: var(--warn);
+      box-shadow: 0 0 8px rgba(255, 191, 105, 0.8);
+      pointer-events: none;
+      transform: translateX(-1px);
+    }
+
+    .value {
+      text-align: right;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      min-height: 24px;
+      color: var(--warn);
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    pre {
+      margin: 0;
+      background: #0b0d12;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      color: #c9d1d9;
+      overflow: auto;
+      min-height: 140px;
+      font-size: 0.86rem;
+      line-height: 1.4;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .timelineBox {
+      position: relative;
+      height: 72px;
+      margin: 14px 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: linear-gradient(180deg, #0b0d12, #10131b);
+      overflow: hidden;
+    }
+
+    .timelineCenter { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(255,255,255,0.18); pointer-events: none; }
+    .fakeWaveform {
+      position: absolute; left: 0; right: 0; top: 34%; height: 32%; opacity: 0.72;
+      background: repeating-linear-gradient(90deg, rgba(127,179,255,0.16) 0px, rgba(127,179,255,0.60) 2px, rgba(127,179,255,0.22) 4px, transparent 7px);
+      clip-path: polygon(0% 46%,3% 37%,7% 55%,11% 29%,15% 65%,19% 42%,23% 71%,27% 36%,31% 62%,35% 33%,39% 67%,43% 39%,47% 58%,51% 30%,55% 70%,59% 43%,63% 60%,67% 35%,71% 66%,75% 38%,79% 63%,83% 32%,87% 69%,91% 44%,95% 56%,100% 47%,100% 53%,95% 44%,91% 56%,87% 31%,83% 68%,79% 37%,75% 62%,71% 34%,67% 65%,63% 40%,59% 57%,55% 30%,51% 70%,47% 42%,43% 61%,39% 33%,35% 67%,31% 38%,27% 64%,23% 29%,19% 58%,15% 35%,11% 71%,7% 45%,3% 63%,0% 54%);
+      pointer-events: none;
+    }
+    .timelineTicks { position: absolute; left: 0; right: 0; bottom: 8px; height: 16px; background: repeating-linear-gradient(90deg, rgba(255,255,255,0.22) 0px, rgba(255,255,255,0.22) 1px, transparent 1px, transparent 40px); opacity: 0.5; pointer-events: none; }
+    .timelineHint { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); background: rgba(20,24,34,0.82); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; color: var(--text); font-size: 0.92rem; text-align: center; pointer-events: none; }
+
+    .clipSelection {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0%;
+      width: 100%;
+      background: rgba(127, 179, 255, 0.22);
+      border-left: 2px solid var(--accent);
+      border-right: 2px solid var(--accent);
+      pointer-events: none;
+    }
+
+    .crossfadeHandle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: rgba(255, 208, 64, 0.18);
+      border-left: 1px dashed rgba(255, 208, 64, 0.75);
+      border-right: 1px dashed rgba(255, 208, 64, 0.75);
+      pointer-events: none;
+    }
+
+    .crossfadeHandle.invalid {
+      background: rgba(255, 96, 96, 0.18);
+      border-color: rgba(255, 96, 96, 0.75);
+    }
+
+    .clipRange {
+      position: absolute;
+      left: 0;
+      right: 0;
+      width: 100%;
+      margin: 0;
+      pointer-events: none;
+      appearance: none;
+      background: transparent;
+    }
+
+    .clipRange.start { top: 0; height: 100%; }
+    .clipRange.end { top: 0; height: 100%; }
+    .clipRange::-webkit-slider-thumb { appearance: none; width: 14px; height: 72px; border-radius: 0; background: transparent; border: 0; cursor: ew-resize; pointer-events: auto; }
+    .clipRange::-moz-range-thumb { width: 14px; height: 72px; border-radius: 0; background: transparent; border: 0; cursor: ew-resize; pointer-events: auto; }
+    .boundaryHandle { position: absolute; top: 0; bottom: 0; width: 2px; pointer-events: none; box-shadow: 0 0 14px currentColor; }
+    .boundaryHandle::after { content: ""; position: absolute; left: -5px; bottom: 8px; width: 12px; height: 12px; transform: rotate(45deg); background: currentColor; border-radius: 2px; }
+    .startHandle { color: #6fd071; background: #6fd071; }
+    .endHandle { color: #70a8ff; background: #70a8ff; }
+    .clipLegend { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; color: var(--muted); margin: 4px 0 10px; }
+    .legendItem { display: inline-flex; gap: 7px; align-items: center; }
+    .legendSwatch { width: 10px; height: 20px; border-radius: 2px; display: inline-block; }
+    .swatchCrossfade { background: #ffd65a; }
+    .swatchStart { background: #6fd071; }
+    .swatchEnd { background: #70a8ff; }
+
+    .clipRange::-webkit-slider-runnable-track {
+      height: 2px;
+      background: transparent;
+    }
+
+    .clipRange::-moz-range-track {
+      height: 2px;
+      background: transparent;
+    }
+
+    .miniStats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin: 10px 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .miniStats strong {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .aboutPanel {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .levelBadge {
+      min-width: 90px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      border-radius: 8px;
+      padding: 3px 7px;
+      border: 1px solid var(--border);
+      background: #151821;
+      color: var(--muted);
+    }
+
+    .levelBadge.close {
+      color: #b8f7c2;
+      border-color: rgba(84, 214, 112, 0.7);
+      background: rgba(84, 214, 112, 0.12);
+    }
+
+    .levelBadge.near {
+      color: #ffe08a;
+      border-color: rgba(255, 208, 64, 0.7);
+      background: rgba(255, 208, 64, 0.12);
+    }
+
+    .levelBadge.far {
+      color: #ffb0a0;
+      border-color: rgba(255, 128, 96, 0.5);
+      background: rgba(255, 128, 96, 0.08);
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Vacuum Sample Lab v1.6</h1>
+  <div class="topNote">
+    Focused lab for one morphing vacuum motor sample + synthetic air layers.
+    Keep the tonal motor as a single morphing source to avoid beating between similar loops.
+    <button id="topAboutBtn" class="inlineLink">more...</button>
+    <div id="topAboutPanel" class="aboutPanel hidden">
+      <div class="note">
+        <strong>Vacuum Sample Lab v1.6</strong><br><br>
+        This version focuses on loop extraction and behaviour testing: period estimation,
+        snapping the end to integer motor periods, fixed-length outside-handle crossfade,
+        output gain, motor/air layer RMS comparison, and two softened decorrelated RMS-normalized velvet air layers. Space toggles start/stop. Orange slider markers show effective post-load layer values.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <section class="wideCard">
+      <h2>Sample input</h2>
+      <div class="row">
+        <input id="fileInput" type="file" accept="audio/*">
+      </div>
+      <div class="note">
+        File input is the first path. Later this can also load <code>assets/test-loop.wav</code> from GitHub Pages.
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="sectionHeader">
+        <h2>Loop recording / download</h2>
+        <button id="recordPanelBtn" class="tinyButton">show</button>
+      </div>
+      <div id="recordPanel" class="compactPanel hidden">
+        <div class="row">
+          <button id="recordBtn">Record</button>
+          <button id="stopRecordBtn" disabled>Stop recording</button>
+          <button id="useRecordingBtn" disabled>Use recording as loop</button>
+          <button id="exportRecordingBtn" disabled>Export recording</button>
+        </div>
+        <div class="note">Mic recording needs HTTPS or localhost. Use this rarely; normal work can use file input and clipped WAV export.</div>
+      </div>
+    </section>
+
+    <section class="clipCard">
+      <div class="sectionHeader">
+        <h2>Clip editor</h2>
+        <div class="clipTransport">
+          <strong>Transport</strong>
+          
+      <div class="row">
+        <button id="startBtn">Start</button>
+        <button id="stopBtn" disabled>Stop</button>
+      </div>
+      <div class="status" id="statusText">Load or record a vacuum loop sample first.</div>
+    
+        </div>
+      </div>
+      <div class="clipLegend">
+        <span class="legendItem"><span class="legendSwatch swatchCrossfade"></span>Crossfade handle</span>
+        <span class="legendItem"><span class="legendSwatch swatchStart"></span>Loop start</span>
+        <span class="legendItem"><span class="legendSwatch swatchEnd"></span>Loop end</span>
+      </div>
+      <div class="timelineBox">
+        <div class="timelineCenter"></div>
+        <div class="fakeWaveform"></div>
+        <div class="crossfadeHandle" id="crossfadePreHandle"></div>
+        <div class="crossfadeHandle" id="crossfadePostHandle"></div>
+        <div class="clipSelection" id="clipSelection"></div>
+        <div class="boundaryHandle startHandle" id="startHandle"></div>
+        <div class="boundaryHandle endHandle" id="endHandle"></div>
+        <div class="timelineHint" id="timelineHint">Loop length: -</div>
+        <div class="timelineTicks"></div>
+        <input id="clipStartSlider" class="clipRange start" type="range" min="0" max="1000" value="0">
+        <input id="clipEndSlider" class="clipRange end" type="range" min="0" max="1000" value="1000">
+      </div>
+
+      <div class="miniStats">
+        <div>Start: <strong id="clipStartText">0 ms</strong></div>
+        <div>End: <strong id="clipEndText">0 ms</strong></div>
+        <div>Selected length: <strong id="clipLengthText">0 ms</strong></div>
+        <div>Selected samples: <strong id="clipSamplesText">0</strong></div>
+        <div>Output length: <strong id="outputLengthText">0 ms</strong></div>
+        <div>Output samples: <strong id="outputSamplesText">0</strong></div>
+        <div>Crossfade handles: <strong id="crossfadeHandleText">-</strong></div>
+      </div>
+
+      <div class="row">
+        <button id="estimatePeriodBtn" disabled>Estimate period from selected clip</button>
+        <button id="snapEndToPeriodsBtn" disabled>Snap end to N periods</button>
+      </div>
+
+      <label class="control">
+        <span>Loop periods</span>
+        <input id="loopPeriodsSlider" type="range" min="1" max="400" value="20">
+        <span class="value" id="loopPeriodsValue">20</span>
+      </label>
+
+      <div class="miniStats">
+        <div>Estimated F0: <strong id="estimatedF0Text">-</strong></div>
+        <div>Period: <strong id="periodMsText">-</strong></div>
+        <div>Period samples: <strong id="periodSamplesText">-</strong></div>
+        <div>Correlation: <strong id="periodCorrText">-</strong></div>
+      </div>
+
+      <label class="control">
+        <span>Loop crossfade</span>
+        <input id="clipFadeSlider" type="range" min="0" max="100" value="10">
+        <span class="value" id="clipFadeValue">10 ms</span>
+      </label>
+
+      <label class="control">
+        <span>Output gain</span>
+        <input id="outputGainSlider" type="range" min="-24" max="18" value="10">
+        <span class="value" id="outputGainValue">+10 dB</span>
+      </label>
+
+      <div class="miniStats">
+        <div>Output RMS: <strong id="outputRmsText">-</strong></div>
+        <div>Output peak: <strong id="outputPeakText">-</strong></div>
+      </div>
+
+      <div class="row">
+        <button id="useClipBtn" disabled>Use clip as loop</button>
+        <button id="exportClipBtn" disabled>Export edited clip</button>
+        <button id="liveClipBtn" disabled>Live clip: off</button>
+      </div>
+
+      <div class="note">
+        Start and end define the usable loop. Loop crossfade reserves source material outside the selection: before start and after end. Yellow handle zones show the needed outside material. Output loop length stays equal to the selected length. Live clip restarts the motor source with a short fade because loop points are not reliable to retarget while an AudioBufferSourceNode is already playing.
+      </div>
+    </section>
+
+    <section class="halfCard">
+      <h2>Behaviour controls</h2>
+
+      <label class="control">
+        <span>Load</span>
+        <span class="rangeWrap"><input id="loadSlider" type="range" min="-50" max="50" value="0"><span class="actualMarker" id="loadActualMarker"></span></span>
+        <span class="value" id="loadValue">+0%</span>
+      </label>
+
+      <label class="control layerControl">
+        <span>Motor volume</span>
+        <span class="rangeWrap"><input id="motorSlider" type="range" min="0" max="100" value="40"><span class="actualMarker" id="motorActualMarker"></span></span>
+        <span class="value" id="motorValue">40%</span>
+        <span class="levelBadge" id="motorRmsBadge">RMS -</span>
+      </label>
+
+      <label class="control layerControl">
+        <span>Air volume</span>
+        <span class="rangeWrap"><input id="airSlider" type="range" min="0" max="100" value="65"><span class="actualMarker" id="airActualMarker"></span></span>
+        <span class="value" id="airValue">65%</span>
+        <span class="levelBadge" id="airRmsBadge">RMS -</span>
+      </label>
+
+      <label class="control">
+        <span>Velvet low</span>
+        <span class="rangeWrap"><input id="velvetLowSlider" type="range" min="0" max="100" value="70"><span class="actualMarker" id="velvetLowActualMarker"></span></span>
+        <span class="value" id="velvetLowValue">70%</span>
+      </label>
+
+      <label class="control">
+        <span>Velvet high</span>
+        <span class="rangeWrap"><input id="velvetHighSlider" type="range" min="0" max="100" value="60"><span class="actualMarker" id="velvetHighActualMarker"></span></span>
+        <span class="value" id="velvetHighValue">60%</span>
+      </label>
+
+      <label class="control">
+        <span>Harmonic noise</span>
+        <span class="rangeWrap"><input id="harmonicNoiseSlider" type="range" min="0" max="100" value="75"><span class="actualMarker" id="harmonicNoiseActualMarker"></span></span>
+        <span class="value" id="harmonicNoiseValue">75%</span>
+      </label>
+
+      <label class="control">
+        <span>Master volume</span>
+        <input id="masterSlider" type="range" min="0" max="100" value="70">
+        <span class="value" id="masterValue">70%</span>
+      </label>
+    </section>
+
+    <section class="halfCard">
+      <h2>Debug</h2>
+      <pre id="debugReadout"></pre>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const VERSION = "vacuum-sample-lab-v1.6";
+  const DEFAULT_SAMPLE_URL = "assets/test-loop.wav";
+  const DEFAULT_RECORDING_FILENAME = "testloop.wav";
+
+  const ui = {
+    startBtn: document.getElementById("startBtn"),
+    stopBtn: document.getElementById("stopBtn"),
+    recordBtn: document.getElementById("recordBtn"),
+    stopRecordBtn: document.getElementById("stopRecordBtn"),
+    useRecordingBtn: document.getElementById("useRecordingBtn"),
+    exportRecordingBtn: document.getElementById("exportRecordingBtn"),
+    fileInput: document.getElementById("fileInput"),
+    statusText: document.getElementById("statusText"),
+    debugReadout: document.getElementById("debugReadout"),
+    loadSlider: document.getElementById("loadSlider"),
+    motorSlider: document.getElementById("motorSlider"),
+    airSlider: document.getElementById("airSlider"),
+    velvetLowSlider: document.getElementById("velvetLowSlider"),
+    velvetHighSlider: document.getElementById("velvetHighSlider"),
+    harmonicNoiseSlider: document.getElementById("harmonicNoiseSlider"),
+    masterSlider: document.getElementById("masterSlider"),
+    clipStartSlider: document.getElementById("clipStartSlider"),
+    clipEndSlider: document.getElementById("clipEndSlider"),
+    clipFadeSlider: document.getElementById("clipFadeSlider"),
+    outputGainSlider: document.getElementById("outputGainSlider"),
+    clipSelection: document.getElementById("clipSelection"),
+    crossfadePreHandle: document.getElementById("crossfadePreHandle"),
+    crossfadePostHandle: document.getElementById("crossfadePostHandle"),
+    startHandle: document.getElementById("startHandle"),
+    endHandle: document.getElementById("endHandle"),
+    timelineHint: document.getElementById("timelineHint"),
+    clipStartText: document.getElementById("clipStartText"),
+    clipEndText: document.getElementById("clipEndText"),
+    clipLengthText: document.getElementById("clipLengthText"),
+    clipSamplesText: document.getElementById("clipSamplesText"),
+    outputLengthText: document.getElementById("outputLengthText"),
+    outputSamplesText: document.getElementById("outputSamplesText"),
+    crossfadeHandleText: document.getElementById("crossfadeHandleText"),
+    estimatedF0Text: document.getElementById("estimatedF0Text"),
+    periodMsText: document.getElementById("periodMsText"),
+    periodSamplesText: document.getElementById("periodSamplesText"),
+    periodCorrText: document.getElementById("periodCorrText"),
+    loopPeriodsSlider: document.getElementById("loopPeriodsSlider"),
+    loopPeriodsValue: document.getElementById("loopPeriodsValue"),
+    estimatePeriodBtn: document.getElementById("estimatePeriodBtn"),
+    snapEndToPeriodsBtn: document.getElementById("snapEndToPeriodsBtn"),
+    clipFadeValue: document.getElementById("clipFadeValue"),
+    outputGainValue: document.getElementById("outputGainValue"),
+    outputRmsText: document.getElementById("outputRmsText"),
+    outputPeakText: document.getElementById("outputPeakText"),
+    topAboutBtn: document.getElementById("topAboutBtn"),
+    topAboutPanel: document.getElementById("topAboutPanel"),
+    recordPanelBtn: document.getElementById("recordPanelBtn"),
+    recordPanel: document.getElementById("recordPanel"),
+    useClipBtn: document.getElementById("useClipBtn"),
+    exportClipBtn: document.getElementById("exportClipBtn"),
+    liveClipBtn: document.getElementById("liveClipBtn"),
+    loadValue: document.getElementById("loadValue"),
+    motorValue: document.getElementById("motorValue"),
+    airValue: document.getElementById("airValue"),
+    velvetLowValue: document.getElementById("velvetLowValue"),
+    velvetHighValue: document.getElementById("velvetHighValue"),
+    harmonicNoiseValue: document.getElementById("harmonicNoiseValue"),
+    loadActualMarker: document.getElementById("loadActualMarker"),
+    motorActualMarker: document.getElementById("motorActualMarker"),
+    airActualMarker: document.getElementById("airActualMarker"),
+    velvetLowActualMarker: document.getElementById("velvetLowActualMarker"),
+    velvetHighActualMarker: document.getElementById("velvetHighActualMarker"),
+    harmonicNoiseActualMarker: document.getElementById("harmonicNoiseActualMarker"),
+    motorRmsBadge: document.getElementById("motorRmsBadge"),
+    airRmsBadge: document.getElementById("airRmsBadge"),
+    masterValue: document.getElementById("masterValue")
+  };
+
+  const state = {
+    audioCtx: null,
+    masterGain: null,
+    motorGain: null,
+    airGain: null,
+    harmonicNoiseGain: null,
+    velvetLowGain: null,
+    velvetHighGain: null,
+    motorSource: null,
+    airSourceA: null,
+    airSourceB: null,
+    harmonicNoiseSource: null,
+    velvetLowSource: null,
+    velvetHighSource: null,
+    sampleBuffer: null,
+    recordedBuffer: null,
+    sourceBuffer: null,
+    activeClipBuffer: null,
+    liveClipEnabled: false,
+    liveClipTimer: null,
+    periodAnalysis: {
+      periodSamples: null,
+      frequencyHz: null,
+      correlation: null
+    },
+    outputGainDb: 10,
+    isRunning: false,
+    mediaRecorder: null,
+    recordedChunks: [],
+    controls: {
+      load01: 0,
+      motorVolume01: 0.8,
+      airVolume01: 0.25,
+      velvetLow01: 0.70,
+      velvetHigh01: 0.60,
+      harmonicNoise01: 0.55,
+      masterVolume01: 0.7
+    }
+  };
+
+  function setStatus(message) {
+    ui.statusText.textContent = message;
+  }
+
+  function dbToGain(db) {
+    return Math.pow(10, db / 20);
+  }
+
+  function percentTo01(value) {
+    return Math.max(0, Math.min(1, Number(value) / 100));
+  }
+
+  function createAudioContextIfNeeded() {
+    if (!state.audioCtx) {
+      state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      state.masterGain = state.audioCtx.createGain();
+      state.motorGain = state.audioCtx.createGain();
+      state.airGain = state.audioCtx.createGain();
+      state.harmonicNoiseGain = state.audioCtx.createGain();
+      state.velvetLowGain = state.audioCtx.createGain();
+      state.velvetHighGain = state.audioCtx.createGain();
+
+      state.motorGain.connect(state.masterGain);
+      state.airGain.connect(state.masterGain);
+      state.harmonicNoiseGain.connect(state.masterGain);
+      state.velvetLowGain.connect(state.masterGain);
+      state.velvetHighGain.connect(state.masterGain);
+      state.masterGain.connect(state.audioCtx.destination);
+
+      state.masterGain.gain.value = 0;
+      state.motorGain.gain.value = 0;
+      state.airGain.gain.value = 0;
+      state.harmonicNoiseGain.gain.value = 0;
+      state.velvetLowGain.gain.value = 0;
+      state.velvetHighGain.gain.value = 0;
+    }
+
+    return state.audioCtx;
+  }
+
+  function createNoiseBuffer(audioCtx, seconds, highpassHint) {
+    const length = Math.max(1, Math.floor(audioCtx.sampleRate * seconds));
+    const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    let previous = 0;
+    for (let i = 0; i < length; i++) {
+      const white = Math.random() * 2 - 1;
+      // Simple one-pole decorrelation / spectral tilt. This is intentionally lightweight for v0.1.
+      previous = previous * 0.92 + white * 0.08;
+      // Softened air: mostly smoothed turbulence, only a small bright component.
+      data[i] = highpassHint ? ((white - previous) * 0.03 + previous * 0.32) : previous * 0.50;
+    }
+
+    return buffer;
+  }
+
+
+  function createVelvetNoiseBuffer(audioCtx, seconds, impulsesPerSecond, tone) {
+    const length = Math.max(1, Math.floor(audioCtx.sampleRate * seconds));
+    const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    const impulseCount = Math.max(1, Math.floor(seconds * impulsesPerSecond));
+
+    for (let n = 0; n < impulseCount; n++) {
+      const index = Math.floor(Math.random() * length);
+      const sign = Math.random() < 0.5 ? -1 : 1;
+
+      if (tone === "low") {
+        // Soft velvet low = dense, longer overlapping grains for breathy turbulence.
+        for (let k = 0; k < 220 && index + k < length; k++) {
+          const t = k / 219;
+          const env = Math.sin(t * Math.PI) * Math.exp(-k / 110);
+          data[index + k] += sign * env * 0.34;
+        }
+      } else {
+        // Soft velvet high = denser, longer grains; still brighter, but less click-like.
+        for (let k = 0; k < 110 && index + k < length; k++) {
+          const t = k / 109;
+          const env = Math.sin(t * Math.PI) * Math.exp(-k / 55);
+          data[index + k] += sign * env * 0.20;
+        }
+      }
+    }
+
+    // Light smoothing pass to remove click-like grain edges.
+    let prev = 0;
+    for (let i = 0; i < length; i++) {
+      prev = prev * 0.88 + data[i] * 0.12;
+      data[i] = prev;
+    }
+
+    // RMS normalize so the layer is controllable but not spiky.
+    let sumSquares = 0;
+    for (let i = 0; i < length; i++) {
+      sumSquares += data[i] * data[i];
+    }
+
+    const rms = Math.sqrt(sumSquares / Math.max(1, length));
+    const targetRms = tone === "low" ? 0.10 : 0.07;
+
+    if (rms > 1e-9) {
+      const scale = targetRms / rms;
+      for (let i = 0; i < length; i++) {
+        data[i] = Math.max(-1, Math.min(1, data[i] * scale));
+      }
+    }
+
+    return buffer;
+  }
+
+
+  function createLoopingBufferSource(buffer, playbackRate = 1) {
+    const source = state.audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.playbackRate.value = playbackRate;
+    return source;
+  }
+
+  function stopSource(source) {
+    if (!source) return;
+    try {
+      source.stop();
+    } catch (err) {
+      // Source may already be stopped. Safe to ignore.
+    }
+  }
+
+  function computeMappedControls() {
+    const load = state.controls.load01;       // signed range: -1..+1, displayed as -50%..+50%
+    const loadUp = Math.max(0, load);         // only positive load increases motor effort
+    const loadDown = Math.max(0, -load);      // negative load slows the sample down
+
+    // Load model:
+    // - negative load slows playbackRate down to 0.50
+    // - positive load speeds playbackRate up to 1.50
+    // - motor gain rises only with positive load
+    // - air bed is kept low so velvet layers can be heard
+    const playbackRate = 1.0 + load * 0.50;
+    const motorLoadGain = dbToGain(loadUp * 3.0);
+    const airLoadGain = dbToGain(-12.0 + loadUp * -6.0 + loadDown * -2.0);
+    const harmonicLoadGain = dbToGain(-4 + loadUp * 8 - loadDown * 2);
+
+    // Two decorrelated velvet layers add life without adding another tonal motor loop.
+    // They are kept smoother than air noise and should remain audible when air is low.
+    const velvetLowLoadGain = dbToGain(-4 - loadUp * 1 + loadDown * 1);
+    const velvetHighLoadGain = dbToGain(-7 + loadUp * 4 - loadDown * 2);
+
+    return {
+      playbackRate,
+      motorGain: state.controls.motorVolume01 * motorLoadGain,
+      airGain: state.controls.airVolume01 * airLoadGain,
+      harmonicNoiseGain: state.controls.harmonicNoise01 * harmonicLoadGain,
+      velvetLowGain: state.controls.velvetLow01 * velvetLowLoadGain,
+      velvetHighGain: state.controls.velvetHigh01 * velvetHighLoadGain,
+      masterGain: state.controls.masterVolume01
+    };
+  }
+
+  function applyControls(rampSeconds = 0.08) {
+    if (!state.audioCtx || !state.masterGain) return;
+
+    const now = state.audioCtx.currentTime;
+    const mapped = computeMappedControls();
+
+    if (state.motorSource) {
+      state.motorSource.playbackRate.setTargetAtTime(mapped.playbackRate, now, rampSeconds);
+    }
+
+    state.motorGain.gain.setTargetAtTime(mapped.motorGain, now, rampSeconds);
+    state.airGain.gain.setTargetAtTime(mapped.airGain, now, rampSeconds);
+    state.harmonicNoiseGain.gain.setTargetAtTime(mapped.harmonicNoiseGain, now, rampSeconds);
+    state.velvetLowGain.gain.setTargetAtTime(mapped.velvetLowGain, now, rampSeconds);
+    state.velvetHighGain.gain.setTargetAtTime(mapped.velvetHighGain, now, rampSeconds);
+    state.masterGain.gain.setTargetAtTime(mapped.masterGain, now, rampSeconds);
+
+    updateDebug();
+  }
+
+  async function startAudio() {
+    const audioCtx = createAudioContextIfNeeded();
+    await audioCtx.resume();
+
+    if (!state.sampleBuffer) {
+      setStatus("Load or record a sample before starting.");
+      return;
+    }
+
+    if (state.isRunning) return;
+
+    const mapped = computeMappedControls();
+
+    state.motorSource = createLoopingBufferSource(state.sampleBuffer, mapped.playbackRate);
+    state.motorSource.connect(state.motorGain);
+
+    state.airSourceA = createLoopingBufferSource(createNoiseBuffer(audioCtx, 2.3, false), 1);
+    state.airSourceB = createLoopingBufferSource(createNoiseBuffer(audioCtx, 3.1, true), 1);
+    state.harmonicNoiseSource = createLoopingBufferSource(createNoiseBuffer(audioCtx, 1.7, true), 1);
+    state.velvetLowSource = createLoopingBufferSource(createVelvetNoiseBuffer(audioCtx, 4.7, 1200, "low"), 1);
+    state.velvetHighSource = createLoopingBufferSource(createVelvetNoiseBuffer(audioCtx, 3.9, 1800, "high"), 1);
+
+    state.airSourceA.connect(state.airGain);
+    state.airSourceB.connect(state.airGain);
+    state.harmonicNoiseSource.connect(state.harmonicNoiseGain);
+    state.velvetLowSource.connect(state.velvetLowGain);
+    state.velvetHighSource.connect(state.velvetHighGain);
+
+    const now = audioCtx.currentTime;
+    state.masterGain.gain.cancelScheduledValues(now);
+    state.masterGain.gain.setValueAtTime(0, now);
+
+    state.motorSource.start(now);
+    state.airSourceA.start(now);
+    state.airSourceB.start(now);
+    state.harmonicNoiseSource.start(now);
+    state.velvetLowSource.start(now);
+    state.velvetHighSource.start(now);
+
+    state.isRunning = true;
+    ui.startBtn.disabled = true;
+    ui.stopBtn.disabled = false;
+
+    applyControls(0.12);
+    setStatus("Running.");
+  }
+
+  function stopAudio() {
+    if (!state.audioCtx || !state.isRunning) return;
+
+    const now = state.audioCtx.currentTime;
+    const stopAt = now + 0.18;
+
+    state.masterGain.gain.cancelScheduledValues(now);
+    state.masterGain.gain.setValueAtTime(state.masterGain.gain.value, now);
+    state.masterGain.gain.linearRampToValueAtTime(0.0001, stopAt);
+
+    const sources = [
+      state.motorSource,
+      state.airSourceA,
+      state.airSourceB,
+      state.harmonicNoiseSource,
+      state.velvetLowSource,
+      state.velvetHighSource
+    ];
+
+    setTimeout(() => {
+      sources.forEach(stopSource);
+
+      state.motorSource = null;
+      state.airSourceA = null;
+      state.airSourceB = null;
+      state.harmonicNoiseSource = null;
+      state.velvetLowSource = null;
+      state.velvetHighSource = null;
+      state.isRunning = false;
+
+      ui.startBtn.disabled = false;
+      ui.stopBtn.disabled = true;
+
+      setStatus("Stopped.");
+      updateDebug();
+    }, 220);
+  }
+
+  async function decodeArrayBuffer(arrayBuffer) {
+    const audioCtx = createAudioContextIfNeeded();
+    // decodeAudioData may detach the ArrayBuffer, so always pass a sliced copy.
+    return await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+  }
+
+  async function loadFile(file) {
+    if (!file) return;
+
+    try {
+      setStatus("Decoding sample...");
+      const arrayBuffer = await file.arrayBuffer();
+      state.sampleBuffer = await decodeArrayBuffer(arrayBuffer);
+      state.sourceBuffer = state.sampleBuffer;
+      resetPeriodAnalysis();
+      ui.clipStartSlider.value = "0";
+      ui.clipEndSlider.value = "1000";
+      setStatus(`Loaded sample: ${file.name}`);
+      updateClipEditor();
+      updateDebug();
+    } catch (err) {
+      console.error(err);
+      setStatus("Could not decode this audio file.");
+    }
+  }
+
+  async function startRecording() {
+    try {
+      createAudioContextIfNeeded();
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      state.recordedChunks = [];
+
+      state.mediaRecorder = new MediaRecorder(stream);
+
+      state.mediaRecorder.ondataavailable = event => {
+        if (event.data && event.data.size > 0) {
+          state.recordedChunks.push(event.data);
+        }
+      };
+
+      state.mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+
+        const blob = new Blob(state.recordedChunks, {
+          type: state.mediaRecorder.mimeType || "audio/webm"
+        });
+
+        try {
+          const arrayBuffer = await blob.arrayBuffer();
+          state.recordedBuffer = await decodeArrayBuffer(arrayBuffer);
+          state.sourceBuffer = state.recordedBuffer;
+          resetPeriodAnalysis();
+          ui.clipStartSlider.value = "0";
+          ui.clipEndSlider.value = "1000";
+          ui.useRecordingBtn.disabled = false;
+          ui.exportRecordingBtn.disabled = false;
+          setStatus(`Recording decoded: ${state.recordedBuffer.duration.toFixed(2)} s`);
+          updateClipEditor();
+          updateDebug();
+        } catch (err) {
+          console.error(err);
+          setStatus("Recording finished, but decoding failed.");
+        }
+      };
+
+      state.mediaRecorder.start();
+
+      ui.recordBtn.disabled = true;
+      ui.stopRecordBtn.disabled = false;
+      ui.useRecordingBtn.disabled = true;
+
+      setStatus("Recording...");
+    } catch (err) {
+      console.error(err);
+      setStatus("Microphone recording failed. Use HTTPS or localhost and allow mic access.");
+    }
+  }
+
+  function stopRecording() {
+    if (!state.mediaRecorder || state.mediaRecorder.state === "inactive") return;
+
+    state.mediaRecorder.stop();
+
+    ui.recordBtn.disabled = false;
+    ui.stopRecordBtn.disabled = true;
+
+    setStatus("Stopping recording...");
+  }
+
+  function useRecordingAsLoop() {
+    if (!state.recordedBuffer) {
+      setStatus("No decoded recording available.");
+      return;
+    }
+
+    const wasRunning = state.isRunning;
+    if (wasRunning) stopAudio();
+
+    state.sampleBuffer = state.recordedBuffer;
+    state.sourceBuffer = state.recordedBuffer;
+    resetPeriodAnalysis();
+    ui.clipStartSlider.value = "0";
+    ui.clipEndSlider.value = "1000";
+    setStatus("Recording is now used as the motor loop sample.");
+
+    updateClipEditor();
+    updateDebug();
+  }
+
+
+
+  function getEditableBuffer() {
+    return state.sourceBuffer || state.recordedBuffer || state.sampleBuffer;
+  }
+
+  function formatTime(seconds) {
+    if (!Number.isFinite(seconds)) return "0 ms";
+    if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
+    return `${seconds.toFixed(3)} s`;
+  }
+
+  function getClipRange() {
+    const buffer = getEditableBuffer();
+    if (!buffer) {
+      return { startSample: 0, endSample: 0, lengthSamples: 0, startSec: 0, endSec: 0, lengthSec: 0 };
+    }
+
+    const total = buffer.length;
+    let startNorm = Number(ui.clipStartSlider.value) / 1000;
+    let endNorm = Number(ui.clipEndSlider.value) / 1000;
+
+    if (endNorm <= startNorm) {
+      endNorm = Math.min(1, startNorm + 1 / 1000);
+      ui.clipEndSlider.value = String(Math.round(endNorm * 1000));
+    }
+
+    const startSample = Math.max(0, Math.min(total - 1, Math.round(startNorm * total)));
+    const endSample = Math.max(startSample + 1, Math.min(total, Math.round(endNorm * total)));
+    const lengthSamples = endSample - startSample;
+
+    return {
+      startSample,
+      endSample,
+      lengthSamples,
+      startSec: startSample / buffer.sampleRate,
+      endSec: endSample / buffer.sampleRate,
+      lengthSec: lengthSamples / buffer.sampleRate
+    };
+  }
+
+  function updateClipEditor() {
+    const buffer = getEditableBuffer();
+    const range = getClipRange();
+
+    const startPercent = buffer ? (range.startSample / buffer.length) * 100 : 0;
+    const endPercent = buffer ? (range.endSample / buffer.length) * 100 : 100;
+
+    ui.clipSelection.style.left = `${startPercent}%`;
+    ui.clipSelection.style.width = `${Math.max(0, endPercent - startPercent)}%`;
+
+    ui.clipStartText.textContent = formatTime(range.startSec);
+    ui.clipEndText.textContent = formatTime(range.endSec);
+    const maxFadeSamples = buffer
+      ? Math.max(0, Math.min(Math.floor(range.lengthSamples / 3), range.startSample, buffer.length - range.endSample))
+      : 0;
+    const maxFadeMs = buffer ? (maxFadeSamples / buffer.sampleRate) * 1000 : 0;
+    ui.clipFadeSlider.max = String(Math.max(0, Math.floor(maxFadeMs)));
+    if (Number(ui.clipFadeSlider.value) > Number(ui.clipFadeSlider.max)) ui.clipFadeSlider.value = ui.clipFadeSlider.max;
+
+    const fadeSamples = buffer ? Math.floor((Number(ui.clipFadeSlider.value) / 1000) * buffer.sampleRate) : 0;
+    const hasPreHandle = buffer ? range.startSample >= fadeSamples : false;
+    const hasPostHandle = buffer ? range.endSample + fadeSamples <= buffer.length : false;
+
+    const handleStartPercent = buffer ? (range.startSample / buffer.length) * 100 : 0;
+    const handleEndPercent = buffer ? (range.endSample / buffer.length) * 100 : 100;
+    const preStartPercent = buffer ? ((range.startSample - fadeSamples) / buffer.length) * 100 : 0;
+    const postEndPercent = buffer ? ((range.endSample + fadeSamples) / buffer.length) * 100 : 0;
+
+    ui.crossfadePreHandle.style.left = `${Math.max(0, preStartPercent)}%`;
+    ui.crossfadePreHandle.style.width = `${Math.max(0, startPercent - Math.max(0, preStartPercent))}%`;
+    ui.crossfadePostHandle.style.left = `${Math.max(0, endPercent)}%`;
+    ui.crossfadePostHandle.style.width = `${Math.max(0, Math.min(100, postEndPercent) - endPercent)}%`;
+    ui.crossfadePreHandle.classList.toggle("invalid", fadeSamples > 0 && !hasPreHandle);
+    ui.crossfadePostHandle.classList.toggle("invalid", fadeSamples > 0 && !hasPostHandle);
+    ui.startHandle.style.left = `${handleStartPercent}%`;
+    ui.endHandle.style.left = `${handleEndPercent}%`;
+    ui.timelineHint.textContent = `Loop length: ${formatTime(range.lengthSec)} / ${range.lengthSamples} samples`;
+
+    ui.clipLengthText.textContent = formatTime(range.lengthSec);
+    ui.clipSamplesText.textContent = String(range.lengthSamples);
+    ui.outputLengthText.textContent = formatTime(range.lengthSec);
+    ui.outputSamplesText.textContent = String(range.lengthSamples);
+    ui.crossfadeHandleText.textContent = fadeSamples <= 0 ? "off" : (hasPreHandle && hasPostHandle ? "ok" : "missing");
+    state.outputGainDb = Number(ui.outputGainSlider.value);
+    ui.clipFadeValue.textContent = `${ui.clipFadeSlider.value} ms / max ${maxFadeMs.toFixed(1)} ms`;
+    ui.outputGainValue.textContent = `${state.outputGainDb >= 0 ? "+" : ""}${state.outputGainDb} dB`;
+    if (buffer && state.periodAnalysis.periodSamples) {
+      const maxPeriods = Math.max(1, Math.floor((buffer.length - range.startSample) / state.periodAnalysis.periodSamples));
+      ui.loopPeriodsSlider.max = String(Math.min(400, maxPeriods));
+      if (Number(ui.loopPeriodsSlider.value) > Number(ui.loopPeriodsSlider.max)) ui.loopPeriodsSlider.value = ui.loopPeriodsSlider.max;
+    }
+    ui.loopPeriodsValue.textContent = ui.loopPeriodsSlider.value;
+    updateOutputMeter();
+
+    const hasBuffer = Boolean(buffer);
+    const hasPeriod = Boolean(state.periodAnalysis.periodSamples);
+    ui.useClipBtn.disabled = !hasBuffer;
+    ui.exportClipBtn.disabled = !hasBuffer;
+    ui.liveClipBtn.disabled = !hasBuffer;
+    ui.estimatePeriodBtn.disabled = !hasBuffer;
+    ui.snapEndToPeriodsBtn.disabled = !hasBuffer || !hasPeriod;
+
+    updateDebug();
+  }
+
+
+  function estimatePeriodFromSelectedClip() {
+    const source = getEditableBuffer();
+    if (!source) {
+      setStatus("No buffer available for period estimation.");
+      return;
+    }
+
+    const range = getClipRange();
+    const channel = source.getChannelData(0);
+    const sampleRate = source.sampleRate;
+
+    // Vacuum motor fundamentals are expected roughly in this band.
+    // Adjust later if real recordings show a different useful range.
+    const minHz = 30;
+    const maxHz = 300;
+    const minLag = Math.max(1, Math.floor(sampleRate / maxHz));
+    const maxLag = Math.min(
+      Math.floor(sampleRate / minHz),
+      Math.floor(range.lengthSamples / 2)
+    );
+
+    if (maxLag <= minLag || range.lengthSamples < maxLag * 3) {
+      setStatus("Selected clip is too short for reliable period estimation.");
+      return;
+    }
+
+    // Use the current selected raw clip, before loop crossfade.
+    // Autocorrelation is more robust than zero-crossing when noise is present.
+    const analysisStart = range.startSample;
+    const analysisLength = range.lengthSamples;
+    const mean = computeMean(channel, analysisStart, analysisLength);
+
+    let bestLag = minLag;
+    let bestCorr = -Infinity;
+
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let sum = 0;
+      let energyA = 0;
+      let energyB = 0;
+
+      const n = analysisLength - lag;
+      for (let i = 0; i < n; i++) {
+        const a = channel[analysisStart + i] - mean;
+        const b = channel[analysisStart + i + lag] - mean;
+        sum += a * b;
+        energyA += a * a;
+        energyB += b * b;
+      }
+
+      const corr = sum / Math.sqrt(Math.max(1e-12, energyA * energyB));
+
+      if (corr > bestCorr) {
+        bestCorr = corr;
+        bestLag = lag;
+      }
+    }
+
+    state.periodAnalysis.periodSamples = bestLag;
+    state.periodAnalysis.frequencyHz = sampleRate / bestLag;
+    state.periodAnalysis.correlation = bestCorr;
+
+    const selectedPeriods = Math.max(1, Math.round(range.lengthSamples / bestLag));
+    ui.loopPeriodsSlider.value = String(Math.min(Number(ui.loopPeriodsSlider.max), selectedPeriods));
+
+    ui.estimatedF0Text.textContent = `${state.periodAnalysis.frequencyHz.toFixed(1)} Hz`;
+    ui.periodMsText.textContent = `${((bestLag / sampleRate) * 1000).toFixed(2)} ms`;
+    ui.periodSamplesText.textContent = String(bestLag);
+    ui.periodCorrText.textContent = bestCorr.toFixed(3);
+
+    setStatus(`Estimated period: ${bestLag} samples / ${state.periodAnalysis.frequencyHz.toFixed(1)} Hz from selected clip.`);
+    updateClipEditor();
+  }
+
+  function computeMean(data, start, length) {
+    let sum = 0;
+    for (let i = 0; i < length; i++) {
+      sum += data[start + i] || 0;
+    }
+    return sum / Math.max(1, length);
+  }
+
+  function snapEndToPeriodMultiple() {
+    const source = getEditableBuffer();
+    const periodSamples = state.periodAnalysis.periodSamples;
+
+    if (!source || !periodSamples) {
+      setStatus("Estimate period first.");
+      return;
+    }
+
+    const range = getClipRange();
+    const maxPeriods = Math.max(1, Math.floor((source.length - range.startSample) / periodSamples));
+    ui.loopPeriodsSlider.max = String(Math.min(400, maxPeriods));
+    const loopPeriods = Math.min(maxPeriods, Math.max(1, Number(ui.loopPeriodsSlider.value)));
+    ui.loopPeriodsSlider.value = String(loopPeriods);
+    const targetLengthSamples = Math.round(loopPeriods * periodSamples);
+    const newEndSample = Math.min(source.length, range.startSample + targetLengthSamples);
+
+    if (newEndSample <= range.startSample + 1) {
+      setStatus("Cannot snap end: resulting loop would be too short.");
+      return;
+    }
+
+    ui.clipEndSlider.value = String(Math.round((newEndSample / source.length) * 1000));
+
+    updateClipEditor();
+    scheduleLiveClipUpdate();
+
+    const snapped = getClipRange();
+    setStatus(`Snapped end to ${loopPeriods} periods: ${formatTime(snapped.lengthSec)}, ${snapped.lengthSamples} samples.`);
+  }
+
+  function resetPeriodAnalysis() {
+    state.periodAnalysis = { periodSamples: null, frequencyHz: null, correlation: null };
+    ui.estimatedF0Text.textContent = "-";
+    ui.periodMsText.textContent = "-";
+    ui.periodSamplesText.textContent = "-";
+    ui.periodCorrText.textContent = "-";
+  }
+
+
+  function applyOutputGainAndMeasure(buffer) {
+    const gain = dbToGain(state.outputGainDb);
+    let sumSquares = 0;
+    let peak = 0;
+    let sampleCount = 0;
+
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      const data = buffer.getChannelData(ch);
+      for (let i = 0; i < data.length; i++) {
+        const boosted = data[i] * gain;
+        const clipped = Math.max(-1, Math.min(1, boosted));
+        data[i] = clipped;
+
+        const abs = Math.abs(clipped);
+        peak = Math.max(peak, abs);
+        sumSquares += clipped * clipped;
+        sampleCount++;
+      }
+    }
+
+    const rms = Math.sqrt(sumSquares / Math.max(1, sampleCount));
+    return {
+      rmsDb: rms > 0 ? 20 * Math.log10(rms) : -Infinity,
+      peakDb: peak > 0 ? 20 * Math.log10(peak) : -Infinity,
+      clipped: peak >= 0.999
+    };
+  }
+
+  function formatDb(value) {
+    if (!Number.isFinite(value)) return "-∞ dB";
+    return `${value.toFixed(1)} dB`;
+  }
+
+  function updateOutputMeter() {
+    if (!ui.outputRmsText || !ui.outputPeakText) return;
+
+    const clip = makeClippedBuffer({ silent: true });
+    if (!clip) {
+      ui.outputRmsText.textContent = "-";
+      ui.outputPeakText.textContent = "-";
+      return;
+    }
+
+    const stats = applyOutputGainAndMeasure(clip);
+    ui.outputRmsText.textContent = formatDb(stats.rmsDb);
+    ui.outputPeakText.textContent = `${formatDb(stats.peakDb)}${stats.clipped ? " CLIP" : ""}`;
+  }
+  function makeClippedBuffer(options = {}) {
+    const source = getEditableBuffer();
+    if (!source) return null;
+
+    const range = getClipRange();
+
+    // Fixed-length outside-handle crossfade:
+    // The user-selected start/end stay as the actual loop boundaries.
+    // Crossfade material is read from before start and after end, so output length does not shrink.
+    const requestedFadeSamples = Math.floor((Number(ui.clipFadeSlider.value) / 1000) * source.sampleRate);
+    const fadeSamples = Math.min(
+      requestedFadeSamples,
+      Math.floor(range.lengthSamples / 3)
+    );
+
+    const hasPreHandle = range.startSample >= fadeSamples;
+    const hasPostHandle = range.endSample + fadeSamples <= source.length;
+    const useOutsideHandles = fadeSamples > 0 && hasPreHandle && hasPostHandle;
+
+    const clip = state.audioCtx.createBuffer(
+      source.numberOfChannels,
+      range.lengthSamples,
+      source.sampleRate
+    );
+
+    for (let ch = 0; ch < source.numberOfChannels; ch++) {
+      const src = source.getChannelData(ch);
+      const dst = clip.getChannelData(ch);
+
+      for (let i = 0; i < range.lengthSamples; i++) {
+        dst[i] = src[range.startSample + i] || 0;
+      }
+
+      if (!useOutsideHandles) {
+        continue;
+      }
+
+      // Start seam: use material after the selected end as the natural continuation,
+      // then fade into the selected loop beginning.
+      for (let i = 0; i < fadeSamples; i++) {
+        const t = i / Math.max(1, fadeSamples - 1);
+        const post = src[range.endSample + i] || 0;
+        const head = src[range.startSample + i] || 0;
+        const fadeOut = Math.cos(t * Math.PI * 0.5);
+        const fadeIn = Math.sin(t * Math.PI * 0.5);
+        dst[i] = post * fadeOut + head * fadeIn;
+      }
+
+      // End seam: fade from the selected loop ending toward material before the selected start.
+      // This gives the wrap point similar local context on both sides.
+      for (let i = 0; i < fadeSamples; i++) {
+        const t = i / Math.max(1, fadeSamples - 1);
+        const tail = src[range.endSample - fadeSamples + i] || 0;
+        const pre = src[range.startSample - fadeSamples + i] || 0;
+        const fadeOut = Math.cos(t * Math.PI * 0.5);
+        const fadeIn = Math.sin(t * Math.PI * 0.5);
+        dst[range.lengthSamples - fadeSamples + i] = tail * fadeOut + pre * fadeIn;
+      }
+    }
+
+    const stats = applyOutputGainAndMeasure(clip);
+
+    if (!options.silent && ui.outputRmsText && ui.outputPeakText) {
+      ui.outputRmsText.textContent = formatDb(stats.rmsDb);
+      ui.outputPeakText.textContent = `${formatDb(stats.peakDb)}${stats.clipped ? " CLIP" : ""}`;
+    }
+
+    if (!options.silent && fadeSamples > 0 && !useOutsideHandles) {
+      setStatus("Not enough outside material for the requested crossfade. Move start/end inward or reduce crossfade.");
+    }
+
+    return clip;
+  }
+
+  function useClipAsLoop({ keepRunning = true } = {}) {
+    createAudioContextIfNeeded();
+
+    const clip = makeClippedBuffer();
+    if (!clip) {
+      setStatus("No buffer available for clipping.");
+      return;
+    }
+
+    state.activeClipBuffer = clip;
+    state.sampleBuffer = clip;
+
+    const wasRunning = state.isRunning;
+    if (wasRunning) {
+      restartMotorWithCurrentSample();
+    }
+
+    if (!wasRunning || keepRunning) {
+      setStatus(`Using clipped loop: ${formatTime(clip.duration)}, ${clip.length} samples.`);
+    }
+
+    updateDebug();
+  }
+
+  function restartMotorWithCurrentSample() {
+    if (!state.audioCtx || !state.isRunning || !state.sampleBuffer) return;
+
+    const now = state.audioCtx.currentTime;
+    const mapped = computeMappedControls();
+    const oldSource = state.motorSource;
+
+    const oldMotorGain = state.motorGain;
+    const newMotorGain = state.audioCtx.createGain();
+    newMotorGain.gain.setValueAtTime(0.0001, now);
+    newMotorGain.connect(state.masterGain);
+
+    const newSource = createLoopingBufferSource(state.sampleBuffer, mapped.playbackRate);
+    newSource.connect(newMotorGain);
+    newSource.start(now);
+
+    newMotorGain.gain.linearRampToValueAtTime(mapped.motorGain, now + 0.05);
+    oldMotorGain.gain.cancelScheduledValues(now);
+    oldMotorGain.gain.setValueAtTime(oldMotorGain.gain.value, now);
+    oldMotorGain.gain.linearRampToValueAtTime(0.0001, now + 0.05);
+
+    setTimeout(() => {
+      stopSource(oldSource);
+      oldMotorGain.disconnect();
+      state.motorGain = newMotorGain;
+      state.motorSource = newSource;
+      applyControls(0.04);
+    }, 70);
+  }
+
+  function scheduleLiveClipUpdate() {
+    if (!state.liveClipEnabled) return;
+
+    clearTimeout(state.liveClipTimer);
+    state.liveClipTimer = setTimeout(() => {
+      useClipAsLoop({ keepRunning: false });
+    }, 120);
+  }
+
+  function toggleLiveClip() {
+    state.liveClipEnabled = !state.liveClipEnabled;
+    ui.liveClipBtn.textContent = state.liveClipEnabled ? "Live clip: on" : "Live clip: off";
+
+    if (state.liveClipEnabled) {
+      useClipAsLoop({ keepRunning: false });
+      setStatus("Live clip editing enabled.");
+    } else {
+      clearTimeout(state.liveClipTimer);
+      setStatus("Live clip editing disabled.");
+    }
+  }
+
+  function downloadClippedLoopAsWav() {
+    createAudioContextIfNeeded();
+
+    const clip = makeClippedBuffer();
+    if (!clip) {
+      setStatus("No clipped buffer available for WAV download.");
+      return;
+    }
+
+    const blob = audioBufferToWavBlob(clip);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = DEFAULT_RECORDING_FILENAME;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus(`Exported edited clip as ${DEFAULT_RECORDING_FILENAME}. Move it to assets/ and rename if needed.`);
+  }
+
+  function audioBufferToWavBlob(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const bytesPerSample = 2;
+    const blockAlign = numChannels * bytesPerSample;
+    const numFrames = buffer.length;
+    const dataSize = numFrames * blockAlign;
+    const wavSize = 44 + dataSize;
+    const arrayBuffer = new ArrayBuffer(wavSize);
+    const view = new DataView(arrayBuffer);
+
+    function writeString(offset, text) {
+      for (let i = 0; i < text.length; i++) {
+        view.setUint8(offset + i, text.charCodeAt(i));
+      }
+    }
+
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeString(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    const channels = [];
+    for (let ch = 0; ch < numChannels; ch++) {
+      channels.push(buffer.getChannelData(ch));
+    }
+
+    for (let i = 0; i < numFrames; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+        const int16 = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+        view.setInt16(offset, int16, true);
+        offset += 2;
+      }
+    }
+
+    return new Blob([arrayBuffer], { type: "audio/wav" });
+  }
+
+  function downloadRecordedLoopAsWav() {
+    if (!state.recordedBuffer) {
+      setStatus("No decoded recording available for WAV download.");
+      return;
+    }
+
+    const blob = audioBufferToWavBlob(state.recordedBuffer);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = DEFAULT_RECORDING_FILENAME;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus(`Exported recording as ${DEFAULT_RECORDING_FILENAME}. Move it to assets/ and rename if needed.`);
+  }
+
+  async function loadDefaultSample() {
+    try {
+      setStatus(`Loading default sample: ${DEFAULT_SAMPLE_URL}`);
+      const response = await fetch(DEFAULT_SAMPLE_URL, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      state.sampleBuffer = await decodeArrayBuffer(arrayBuffer);
+      state.sourceBuffer = state.sampleBuffer;
+      resetPeriodAnalysis();
+      ui.clipStartSlider.value = "0";
+      ui.clipEndSlider.value = "1000";
+      setStatus(`Loaded default sample: ${DEFAULT_SAMPLE_URL}`);
+      updateClipEditor();
+      updateDebug();
+    } catch (err) {
+      console.warn("Default sample load failed:", err);
+      setStatus("No default sample found. Load or record a sample.");
+      updateDebug();
+    }
+  }
+
+
+  function computeBufferRmsDb(buffer) {
+    if (!buffer) return -Infinity;
+
+    let sumSquares = 0;
+    let sampleCount = 0;
+
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      const data = buffer.getChannelData(ch);
+      for (let i = 0; i < data.length; i++) {
+        sumSquares += data[i] * data[i];
+        sampleCount++;
+      }
+    }
+
+    const rms = Math.sqrt(sumSquares / Math.max(1, sampleCount));
+    return rms > 0 ? 20 * Math.log10(rms) : -Infinity;
+  }
+
+  function setBadgeClass(element, className) {
+    element.classList.remove("close", "near", "far");
+    if (className) element.classList.add(className);
+  }
+
+  function updateLayerRmsBadges() {
+    if (!ui.motorRmsBadge || !ui.airRmsBadge) return;
+
+    const mapped = computeMappedControls();
+    const motorSourceRmsDb = computeBufferRmsDb(state.sampleBuffer);
+    const airSourceRmsDb = -9; // Approximate RMS level of the synthetic air buffer after generation scaling.
+
+    const motorRmsDb = motorSourceRmsDb + 20 * Math.log10(Math.max(1e-9, mapped.motorGain));
+    const airRmsDb = airSourceRmsDb + 20 * Math.log10(Math.max(1e-9, mapped.airGain));
+
+    ui.motorRmsBadge.textContent = `RMS ${formatDb(motorRmsDb)}`;
+    ui.airRmsBadge.textContent = `RMS ${formatDb(airRmsDb)}`;
+
+    const diffDb = Math.abs(motorRmsDb - airRmsDb);
+    const className = diffDb < 3 ? "close" : diffDb < 6 ? "near" : "far";
+
+    setBadgeClass(ui.motorRmsBadge, className);
+    setBadgeClass(ui.airRmsBadge, className);
+  }
+
+
+  function setActualMarker(marker, value01) {
+    if (!marker) return;
+    const pct = Math.max(0, Math.min(1, value01)) * 100;
+    marker.style.left = `${pct}%`;
+  }
+
+  function updateActualMarkers(mapped) {
+    // Markers show the effective post-load control position, normalized to the 0..1 UI scale.
+    // They are not exact dB meters; they show how load bends each layer from the manual slider value.
+    setActualMarker(ui.loadActualMarker, (state.controls.load01 + 1) * 0.5);
+    setActualMarker(ui.motorActualMarker, Math.min(1, mapped.motorGain));
+    setActualMarker(ui.airActualMarker, Math.min(1, mapped.airGain));
+    // Marker scale references are approximate "useful max" gains, not hard audio limits.
+    setActualMarker(ui.velvetLowActualMarker, mapped.velvetLowGain / 0.75);
+    setActualMarker(ui.velvetHighActualMarker, mapped.velvetHighGain / 0.55);
+    setActualMarker(ui.harmonicNoiseActualMarker, mapped.harmonicNoiseGain / 0.85); 
+  }
+
+
+  function signedLoadFromSlider() {
+    return Math.max(-1, Math.min(1, Number(ui.loadSlider.value) / 50));
+  }
+
+  function formatSignedPercent(valueSigned) {
+    const percent = Math.round(valueSigned * 50);
+    return `${percent >= 0 ? "+" : ""}${percent}%`;
+  }
+
+  function updateControlFromSliders() {
+    state.controls.load01 = signedLoadFromSlider();
+    state.controls.motorVolume01 = percentTo01(ui.motorSlider.value);
+    state.controls.airVolume01 = percentTo01(ui.airSlider.value);
+    state.controls.velvetLow01 = percentTo01(ui.velvetLowSlider.value);
+    state.controls.velvetHigh01 = percentTo01(ui.velvetHighSlider.value);
+    state.controls.harmonicNoise01 = percentTo01(ui.harmonicNoiseSlider.value);
+    state.controls.masterVolume01 = percentTo01(ui.masterSlider.value);
+
+    ui.loadValue.textContent = formatSignedPercent(state.controls.load01);
+    ui.motorValue.textContent = `${Math.round(state.controls.motorVolume01 * 100)}%`;
+    ui.airValue.textContent = `${Math.round(state.controls.airVolume01 * 100)}%`;
+    ui.velvetLowValue.textContent = `${Math.round(state.controls.velvetLow01 * 100)}%`;
+    ui.velvetHighValue.textContent = `${Math.round(state.controls.velvetHigh01 * 100)}%`;
+    ui.harmonicNoiseValue.textContent = `${Math.round(state.controls.harmonicNoise01 * 100)}%`;
+    ui.masterValue.textContent = `${Math.round(state.controls.masterVolume01 * 100)}%`;
+
+    updateActualMarkers(computeMappedControls());
+    applyControls(0.08);
+    updateLayerRmsBadges();
+    updateDebug();
+  }
+
+  function updateDebug() {
+    const mapped = computeMappedControls();
+    const sampleInfo = state.sampleBuffer
+      ? `${state.sampleBuffer.duration.toFixed(2)} s, ${state.sampleBuffer.sampleRate} Hz, ${state.sampleBuffer.numberOfChannels} ch`
+      : "none";
+
+    const recordingInfo = state.recordedBuffer
+      ? `${state.recordedBuffer.duration.toFixed(2)} s, ${state.recordedBuffer.sampleRate} Hz, ${state.recordedBuffer.numberOfChannels} ch`
+      : "none";
+
+    ui.debugReadout.textContent =
+`${VERSION}
+running: ${state.isRunning}
+sampleBuffer: ${sampleInfo}
+recordedBuffer: ${recordingInfo}
+
+clipLength: ${formatTime(getClipRange().lengthSec)}, ${getClipRange().lengthSamples} samples
+estimatedPeriod: ${state.periodAnalysis.periodSamples || "-"} samples
+estimatedF0: ${state.periodAnalysis.frequencyHz ? state.periodAnalysis.frequencyHz.toFixed(2) + " Hz" : "-"}
+outputGainDb: ${state.outputGainDb}
+layerRmsNote: motor/air badges estimate current post-gain layer RMS
+liveClipEnabled: ${state.liveClipEnabled}
+
+load: ${formatSignedPercent(state.controls.load01)}
+playbackRate: ${mapped.playbackRate.toFixed(3)}
+motorGain: ${mapped.motorGain.toFixed(3)}
+airGain: ${mapped.airGain.toFixed(3)}
+harmonicNoiseGain: ${mapped.harmonicNoiseGain.toFixed(4)}
+velvetLowGain: ${mapped.velvetLowGain.toFixed(4)}
+velvetHighGain: ${mapped.velvetHighGain.toFixed(4)}
+masterGain: ${mapped.masterGain.toFixed(3)}
+
+api:
+window.vacuumSampleLabApi.updateControl({
+  loadSigned01: 0.0,
+  motorVolume01: 0.40,
+  airVolume01: 0.65,
+  velvetLow01: 0.70,
+  velvetHigh01: 0.60,
+  harmonicNoise01: 0.75,
+  masterVolume01: 0.7
+});`;
+  }
+
+  function setSliderFrom01(slider, value01) {
+    slider.value = String(Math.round(Math.max(0, Math.min(1, value01)) * 100));
+  }
+
+  window.vacuumSampleLabApi = {
+    updateControl(params = {}) {
+      if (typeof params.loadSigned01 === "number") {
+        state.controls.load01 = Math.max(-1, Math.min(1, params.loadSigned01));
+        ui.loadSlider.value = String(Math.round(state.controls.load01 * 50));
+      } else if (typeof params.load01 === "number") {
+        // Backward compatibility: old API 0..1 maps to new signed -1..+1 range.
+        state.controls.load01 = Math.max(-1, Math.min(1, params.load01 * 2 - 1));
+        ui.loadSlider.value = String(Math.round(state.controls.load01 * 50));
+      }
+      if (typeof params.motorVolume01 === "number") {
+        state.controls.motorVolume01 = Math.max(0, Math.min(1, params.motorVolume01));
+        setSliderFrom01(ui.motorSlider, state.controls.motorVolume01);
+      }
+      if (typeof params.airVolume01 === "number") {
+        state.controls.airVolume01 = Math.max(0, Math.min(1, params.airVolume01));
+        setSliderFrom01(ui.airSlider, state.controls.airVolume01);
+      }
+      if (typeof params.velvetLow01 === "number") {
+        state.controls.velvetLow01 = Math.max(0, Math.min(1, params.velvetLow01));
+        setSliderFrom01(ui.velvetLowSlider, state.controls.velvetLow01);
+      }
+      if (typeof params.velvetHigh01 === "number") {
+        state.controls.velvetHigh01 = Math.max(0, Math.min(1, params.velvetHigh01));
+        setSliderFrom01(ui.velvetHighSlider, state.controls.velvetHigh01);
+      }
+      if (typeof params.harmonicNoise01 === "number") {
+        state.controls.harmonicNoise01 = Math.max(0, Math.min(1, params.harmonicNoise01));
+        setSliderFrom01(ui.harmonicNoiseSlider, state.controls.harmonicNoise01);
+      }
+      if (typeof params.masterVolume01 === "number") {
+        state.controls.masterVolume01 = Math.max(0, Math.min(1, params.masterVolume01));
+        setSliderFrom01(ui.masterSlider, state.controls.masterVolume01);
+      }
+
+      updateControlFromSliders();
+    },
+
+    async start() {
+      await startAudio();
+    },
+
+    stop() {
+      stopAudio();
+    },
+
+    getState() {
+      return {
+        version: VERSION,
+        isRunning: state.isRunning,
+        hasSample: Boolean(state.sampleBuffer),
+        hasRecording: Boolean(state.recordedBuffer),
+        controls: { ...state.controls },
+        mapped: computeMappedControls()
+      };
+    }
+  };
+
+  ui.startBtn.addEventListener("click", startAudio);
+  ui.stopBtn.addEventListener("click", stopAudio);
+
+  document.addEventListener("keydown", event => {
+    const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : "";
+    const inputType = event.target && event.target.type ? event.target.type : "";
+    const isTextInput =
+      tag === "textarea" ||
+      tag === "select" ||
+      (tag === "input" && ["text", "search", "email", "number", "password", "url", "tel"].includes(inputType));
+
+    if (event.code === "Space" && !isTextInput) {
+      event.preventDefault();
+      if (state.isRunning) {
+        stopAudio();
+      } else {
+        startAudio();
+      }
+    }
+  });
+  ui.recordBtn.addEventListener("click", startRecording);
+  ui.stopRecordBtn.addEventListener("click", stopRecording);
+  ui.useRecordingBtn.addEventListener("click", useRecordingAsLoop);
+  ui.exportRecordingBtn.addEventListener("click", downloadRecordedLoopAsWav);
+  ui.useClipBtn.addEventListener("click", () => useClipAsLoop());
+  ui.exportClipBtn.addEventListener("click", downloadClippedLoopAsWav);
+  ui.liveClipBtn.addEventListener("click", toggleLiveClip);
+  ui.estimatePeriodBtn.addEventListener("click", estimatePeriodFromSelectedClip);
+  ui.snapEndToPeriodsBtn.addEventListener("click", snapEndToPeriodMultiple);
+  ui.topAboutBtn.addEventListener("click", () => {
+    ui.topAboutPanel.classList.toggle("hidden");
+  });
+  ui.recordPanelBtn.addEventListener("click", () => {
+    ui.recordPanel.classList.toggle("hidden");
+    ui.recordPanelBtn.textContent = ui.recordPanel.classList.contains("hidden") ? "show" : "hide";
+  });
+  ui.fileInput.addEventListener("change", event => loadFile(event.target.files[0]));
+
+  [ui.loadSlider, ui.motorSlider, ui.airSlider, ui.velvetLowSlider, ui.velvetHighSlider, ui.harmonicNoiseSlider, ui.masterSlider].forEach(slider => {
+    slider.addEventListener("input", updateControlFromSliders);
+  });
+
+  [ui.clipStartSlider, ui.clipEndSlider, ui.clipFadeSlider, ui.outputGainSlider, ui.loopPeriodsSlider].forEach(slider => {
+    slider.addEventListener("input", () => {
+      updateClipEditor();
+      if (slider === ui.loopPeriodsSlider && state.periodAnalysis.periodSamples) {
+        snapEndToPeriodMultiple();
+      } else {
+        scheduleLiveClipUpdate();
+      }
+    });
+  });
+
+  loadDefaultSample();
+  updateControlFromSliders();
+  updateClipEditor();
+  updateDebug();
+})();
+</script>
+</body>
+</html>
